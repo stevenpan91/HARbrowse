@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+//#include <boost/filesystem.hpp>
 #include <QCoreApplication>
 #include <QApplication>
 #include <QFont>
@@ -8,6 +9,8 @@
 #include <QLineEdit>
 #include <QtWebKit>
 #include <QString>
+#include <QDebug>
+#include <QTcpSocket>
 #include <string>
 
 MainWindow::MainWindow(QWidget *parent) 
@@ -68,18 +71,48 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
+bool urlExists(QUrl theurl){
+    QTcpSocket socket;
+    socket.connectToHost(theurl.host(), 80);
+    if (socket.waitForConnected()) {
+        socket.write("HEAD" + theurl.path().toUtf8() + " HTTP/1.1\r\n"
+                     "Host: " + theurl.host().toUtf8() + "\r\n\r\n");
+        if (socket.waitForReadyRead()) {
+            QByteArray bytes = socket.readAll();
+            if (bytes.contains("200 OK")) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void MainWindow::launchURL()
 {
    if (lineEdit1->text().toStdString().substr(0,7)!="http://"){
        const std::string editstr="http://"+lineEdit1->text().toStdString(); 
        QString qeditstr = QString::fromStdString(editstr);
+       lineEdit1->setText(qeditstr);
+       QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
        
-       //view->setUrl(QUrl(lineEdit1->setText(qeditstr)));
+       if (urlExists(url)){
+       view->setUrl(url);}
+       else{
+           
+       //view->load(QUrl("file:///home/steven/Projects/HARbrowse/urlinvalid.html"));    
+       std::string path="home/steven/Projects/HARbrowse";
+       std::string fullpath="file:///"+path+"/urlinvalid.html";
+       view->load(QUrl::fromUserInput(QString::fromStdString(fullpath)));    
+           //display error html page
+       }
+       
+       qDebug() << QString("Invalid URL: %1").arg(url.toString());
+       
    
    } 
    
    
-   view->setUrl(QUrl(lineEdit1->text())); 
+   //view->setUrl(QUrl(lineEdit1->text())); 
 
 
 }
