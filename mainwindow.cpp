@@ -45,9 +45,21 @@ MainWindow::MainWindow(QWidget *parent)
     quit->move(980,0);
     quit->setAutoDefault(false);
     quit->setDefault(false);
-    quit->setFont(QFont("Times",12,QFont::Bold));
-    quit->setStyleSheet(".QPushButton{border: 1px solid black; border-radius: 10px;}");
+    quit->setFont(QFont("Times",8));
+    quit->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
     QObject::connect(quit, SIGNAL(clicked()), QApplication::instance(), SLOT(quit()));
+
+    //Minimize section
+    minimize = new QPushButton(this);
+    minimize->setText("_");
+    minimize->resize(20,20);
+    minimize->move(940,0);
+    minimize->setAutoDefault(false);
+    minimize->setDefault(false);
+    minimize->setFont(QFont("Times",8));
+
+    minimize->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
+    connect(minimize,SIGNAL(clicked()),this,SLOT(WinMinimize()));
 
     //URL section
     lineEdit1 = new QLineEdit(this);
@@ -63,8 +75,8 @@ MainWindow::MainWindow(QWidget *parent)
     urlLaunch->setShortcut(QKeySequence(Qt::Key_Enter));
     urlLaunch->setDefault(true);
     urlLaunch->setAutoDefault(true);
-    urlLaunch->setFont(QFont("Times",12,QFont::Bold));
-    urlLaunch->setStyleSheet(".QPushButton{border: 1px solid black; border-radius: 10px;}");
+    urlLaunch->setFont(QFont("Times",10));
+    urlLaunch->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
     connect(urlLaunch,SIGNAL(clicked()),this,SLOT(launchURL()));
 
     //Print test
@@ -89,6 +101,12 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
+void MainWindow::WinMinimize()
+{
+   QTextStream out(stdout);
+   out << "I'm Here";
+   this->setWindowState(this->windowState() & Qt::WindowMinimized);
+}
 
 bool urlExists(QUrl theurl){
     QTextStream out(stdout);
@@ -151,6 +169,7 @@ void MainWindow::resizeEvent(QResizeEvent *event){
    lineEdit1->resize(nwidth-200,20);
    urlLaunch->move(nwidth-180,20);
    quit->move(nwidth-20,0);
+   minimize->move(nwidth-60,0);
    /*out << nheight;
    out << " , "; 
    out << nwidth;
@@ -158,16 +177,27 @@ void MainWindow::resizeEvent(QResizeEvent *event){
                 
 }
 
+
+//Below two classes from Qt Shaped Clock example
 void MainWindow::mousePressEvent(QMouseEvent *event){
-    mpos = event->pos();
+//From Qt Documentation:
+//Reason why pos() wasn't working is because the global
+//position at time of event may be very different
+//This is why the mpos = event->pos(); line before was
+//possibly causing jumping behavior
+
+    if (event->button() == Qt::LeftButton){
+        mpos = event->globalPos() - frameGeometry().topLeft();
+        event->accept();
+    
+    }
 
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event){
-    if (event->buttons() & Qt::LeftButton){
-        QPoint diff = event->pos() - mpos;
-        QPoint newpos = this->pos() + diff;
-        this->move(newpos);
+    if (event->buttons()==Qt::LeftButton){
+        move(event->globalPos() - mpos);
+        event->accept();
     }
 
 }

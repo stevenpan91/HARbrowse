@@ -16,6 +16,7 @@ class MainWindow : public QMainWindow
         explicit MainWindow(QWidget *parent=0);
     private slots:
         void launchURL();
+        void WinMinimize();
         void keyPressEvent(QKeyEvent *event);
         void resizeEvent(QResizeEvent *event);
         void mousePressEvent(QMouseEvent *event);
@@ -27,6 +28,7 @@ class MainWindow : public QMainWindow
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;
         QPushButton *quit;
+        QPushButton *minimize;
 
 };
 
