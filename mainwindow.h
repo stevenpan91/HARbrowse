@@ -16,11 +16,17 @@ class MainWindow : public QMainWindow
         explicit MainWindow(QWidget *parent=0);
     private slots:
         void launchURL();
+        void keyPressEvent(QKeyEvent *event);
+        void resizeEvent(QResizeEvent *event);
+        void mousePressEvent(QMouseEvent *event);
+        void mouseMoveEvent(QMouseEvent *event);
     protected:  
     private:
+        QPoint mpos;
         QWebView *view;
         QLineEdit *lineEdit1;
-        //void launchUrl();
+        QPushButton *urlLaunch;
+        QPushButton *quit;
 
 };
 
