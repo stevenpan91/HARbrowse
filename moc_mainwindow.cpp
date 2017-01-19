@@ -22,7 +22,7 @@ static const uint qt_meta_data_MainWindow[] = {
        6,       // revision
        0,       // classname
        0,    0, // classinfo
-       6,   14, // methods
+       9,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -32,17 +32,21 @@ static const uint qt_meta_data_MainWindow[] = {
  // slots: signature, parameters, type, tag, flags
       12,   11,   11,   11, 0x08,
       24,   11,   11,   11, 0x08,
-      44,   38,   11,   11, 0x08,
-      70,   38,   11,   11, 0x08,
-      97,   38,   11,   11, 0x08,
-     127,   38,   11,   11, 0x08,
+      38,   11,   11,   11, 0x08,
+      62,   56,   11,   11, 0x08,
+      85,   56,   11,   11, 0x08,
+     108,   56,   11,   11, 0x08,
+     134,   56,   11,   11, 0x08,
+     161,   56,   11,   11, 0x08,
+     191,   56,   11,   11, 0x08,
 
        0        // eod
 };
 
 static const char qt_meta_stringdata_MainWindow[] = {
     "MainWindow\0\0launchURL()\0WinMinimize()\0"
-    "event\0keyPressEvent(QKeyEvent*)\0"
+    "WinMinMaxToggle()\0event\0showEvent(QShowEvent*)\0"
+    "hideEvent(QHideEvent*)\0keyPressEvent(QKeyEvent*)\0"
     "resizeEvent(QResizeEvent*)\0"
     "mousePressEvent(QMouseEvent*)\0"
     "mouseMoveEvent(QMouseEvent*)\0"
@@ -56,10 +60,13 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         switch (_id) {
         case 0: _t->launchURL(); break;
         case 1: _t->WinMinimize(); break;
-        case 2: _t->keyPressEvent((*reinterpret_cast< QKeyEvent*(*)>(_a[1]))); break;
-        case 3: _t->resizeEvent((*reinterpret_cast< QResizeEvent*(*)>(_a[1]))); break;
-        case 4: _t->mousePressEvent((*reinterpret_cast< QMouseEvent*(*)>(_a[1]))); break;
-        case 5: _t->mouseMoveEvent((*reinterpret_cast< QMouseEvent*(*)>(_a[1]))); break;
+        case 2: _t->WinMinMaxToggle(); break;
+        case 3: _t->showEvent((*reinterpret_cast< QShowEvent*(*)>(_a[1]))); break;
+        case 4: _t->hideEvent((*reinterpret_cast< QHideEvent*(*)>(_a[1]))); break;
+        case 5: _t->keyPressEvent((*reinterpret_cast< QKeyEvent*(*)>(_a[1]))); break;
+        case 6: _t->resizeEvent((*reinterpret_cast< QResizeEvent*(*)>(_a[1]))); break;
+        case 7: _t->mousePressEvent((*reinterpret_cast< QMouseEvent*(*)>(_a[1]))); break;
+        case 8: _t->mouseMoveEvent((*reinterpret_cast< QMouseEvent*(*)>(_a[1]))); break;
         default: ;
         }
     }
@@ -97,9 +104,9 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 6)
+        if (_id < 9)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 6;
+        _id -= 9;
     }
     return _id;
 }

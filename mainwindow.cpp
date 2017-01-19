@@ -15,6 +15,7 @@
 #include <string>
 #include <QVBoxLayout>
 #include <QStatusBar>
+#include <QStyle>
 
 MainWindow::MainWindow(QWidget *parent) 
     : QMainWindow(parent)
@@ -23,7 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
     this->setWindowTitle("HARbrowse");
     this->setToolTip("This is a test");
+    //this->mainWinState = Min;
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+    QStyle *style = qApp->style();
 
     QStatusBar *statusBarWidget = new QStatusBar(this);
     statusBarWidget->move(0,0);
@@ -38,9 +41,10 @@ MainWindow::MainWindow(QWidget *parent)
     
 
     //Quit button section
+    QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
     quit = new QPushButton(this);
-    quit->setText("X");
-
+    //quit->setText("X");
+    quit->setIcon(closeIcon);
     quit->resize(20,20);
     quit->move(980,0);
     quit->setAutoDefault(false);
@@ -50,8 +54,10 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(quit, SIGNAL(clicked()), QApplication::instance(), SLOT(quit()));
 
     //Minimize section
+    QIcon minIcon = style->standardIcon(QStyle::SP_TitleBarMinButton);
     minimize = new QPushButton(this);
-    minimize->setText("_");
+    //minimize->setText("_");
+    minimize->setIcon(minIcon);
     minimize->resize(20,20);
     minimize->move(940,0);
     minimize->setAutoDefault(false);
@@ -60,6 +66,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     minimize->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
     connect(minimize,SIGNAL(clicked()),this,SLOT(WinMinimize()));
+
+    //Minimize and Maximize window
+    QIcon maxIcon = style->standardIcon(QStyle::SP_TitleBarMaxButton);
+    minmaxtoggle = new QPushButton(this);
+    minmaxtoggle->setIcon(maxIcon);
+    minmaxtoggle->resize(20,20);
+    minmaxtoggle->move(960,0);
+    minmaxtoggle->setAutoDefault(false);
+    minmaxtoggle->setDefault(false);
+    minmaxtoggle->setFont(QFont("Times",8));
+    minmaxtoggle->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
+    connect(minmaxtoggle,SIGNAL(clicked()),this,SLOT(WinMinMaxToggle()));
+
 
     //URL section
     lineEdit1 = new QLineEdit(this);
@@ -103,9 +122,22 @@ MainWindow::MainWindow(QWidget *parent)
 
 void MainWindow::WinMinimize()
 {
-   QTextStream out(stdout);
-   out << "I'm Here";
-   this->setWindowState(this->windowState() & Qt::WindowMinimized);
+   this->setWindowState(Qt::WindowMinimized);
+
+}
+
+void MainWindow::WinMinMaxToggle(){
+    //QTextStream out(stdout);
+
+    this->setWindowState(this->windowState() ^ Qt::WindowMaximized);
+    if (this->windowState()==Qt::WindowMaximized){
+    //out<< "I am indeed Maximized";
+    this->mainWinState=Max;}
+    else{
+    //out<< "I am indeed Minimized";
+    this->mainWinState=Min;
+    }
+
 }
 
 bool urlExists(QUrl theurl){
@@ -134,22 +166,42 @@ void MainWindow::launchURL()
        lineEdit1->setText(qeditstr); 
    }
    
-       QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
-      
-       if (urlExists(url)){
+   
+   QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
+   if (urlExists(url)){
        view->setUrl(url);}
-       else{
-           
+   else{
+       qDebug() << QString("Invalid URL: %1").arg(url.toString());
+       displayErrorHTML();    
+       }
+
+}
+
+void MainWindow::displayErrorHTML(){
        std::string path="home/steven/Projects/HARbrowse";
        std::string fullpath="file:///"+path+"/urlinvalid.html";
        view->load(QUrl::fromUserInput(QString::fromStdString(fullpath)));    
            //display error html page
-       }
 
-       view->setUrl(url);
 
-       qDebug() << QString("Invalid URL: %1").arg(url.toString());
+}
 
+
+void MainWindow::hideEvent(QHideEvent *event){
+}
+
+void MainWindow::showEvent(QShowEvent *event){
+    //QTextStream out(stdout);
+     
+    if(this->mainWinState==Max){
+    //    out<<"I come out as Max";
+    
+        this->showMaximized();}
+    else if(this->mainWinState==Min){
+    //    out<<"I come out as Min";
+        this->setWindowState(Qt::WindowNoState);
+    //    this->showNormal();
+        }
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event){
@@ -169,6 +221,7 @@ void MainWindow::resizeEvent(QResizeEvent *event){
    lineEdit1->resize(nwidth-200,20);
    urlLaunch->move(nwidth-180,20);
    quit->move(nwidth-20,0);
+   minmaxtoggle->move(nwidth-40,0);
    minimize->move(nwidth-60,0);
    /*out << nheight;
    out << " , "; 
