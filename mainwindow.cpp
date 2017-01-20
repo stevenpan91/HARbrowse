@@ -139,7 +139,7 @@ void MainWindow::WinMinMaxToggle(){
     }
 
 }
-
+/*
 bool urlExists(QUrl theurl){
     QTextStream out(stdout);
     QTcpSocket socket;
@@ -157,14 +157,57 @@ bool urlExists(QUrl theurl){
     }
     return false;
 }
+*/
+
+//taken from stack overflow 
+bool urlExists(QUrl theurl){
+    QTextStream out(stdout);
+    QTcpSocket socket;
+    QByteArray buffer;
+
+        socket.connectToHost(theurl.host(), 80);
+        if (socket.waitForConnected()) {
+            //Standard http request
+            socket.write("GET /index.html HTTP/1.1\r\n"
+                     "host: " + theurl.host().toUtf8() + "\r\n\r\n");
+            if (socket.waitForReadyRead()) {
+                while(socket.bytesAvailable()){
+                    //QByteArray bytes = socket.readAll();
+                    buffer.append(socket.readAll());
+                    //int packetSize = getPacketSize(buffer);
+                    int packetSize=buffer.size();
+                    while(packetSize>0)
+                    {
+                        //Output server response for debugging
+                        out << "[" << buffer.data() << "]" <<endl;
+
+                        //set Url if 200, 301, or 302 response given assuming that server will redirect
+                        if (buffer.contains("200 OK") ||
+                            buffer.contains("302 Found") ||
+                            buffer.contains("301 Moved")) {
+                            return true;
+                        }  
+                        buffer.remove(0,packetSize);
+                        //packetSize=getPacketSize(buffer);
+                        packetSize=buffer.size();
+
+                    } //while packet size >0
+                } //while socket.bytesavail
+                        
+            } //socket wait for ready read
+        }//socket write   
+    
+    return false;
+}
+
 
 void MainWindow::launchURL()
 {
-   if (lineEdit1->text().toStdString().substr(0,7)!="http://"){
+   /*if (lineEdit1->text().toStdString().substr(0,7)!="http://"){
        std::string editstr="http://"+lineEdit1->text().toStdString();
        QString qeditstr = QString::fromStdString(editstr);
        lineEdit1->setText(qeditstr); 
-   }
+   }*/
    
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 

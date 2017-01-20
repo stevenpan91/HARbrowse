@@ -36,6 +36,6 @@ class MainWindow : public QMainWindow
         QPushButton *quit;
         QPushButton *minmaxtoggle;
         QPushButton *minimize;
-
+        
 };
 
