@@ -28,8 +28,14 @@ class MainWindow : public QMainWindow
     protected:  
     private:
         enum WindowState {Min, Max, Full};
+        enum ResizeDirection {UpLeft,Left,BotLeft,Bot,BotRight,Right,TopRight,Top};
         WindowState mainWinState;
-        QPoint mpos;
+        QPoint mpos; //For dragging, relative mouse position to upper left
+        QPoint global_mpos; //For resizing, global mouse position at mouse click
+        QPoint rs_mpos; //for resizing
+        QPoint rs_global_mpos;
+        int storeWidth; //fix window size at mouseclick for resizing
+        int storeHeight;
         QWebView *view;
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;

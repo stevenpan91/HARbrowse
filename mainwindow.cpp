@@ -26,12 +26,16 @@ MainWindow::MainWindow(QWidget *parent)
     this->setToolTip("This is a test");
     //this->mainWinState = Min;
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+    this->setMouseTracking(true); //for resize event
     QStyle *style = qApp->style();
 
+    /*
     QStatusBar *statusBarWidget = new QStatusBar(this);
     statusBarWidget->move(0,0);
-    statusBarWidget->resize(20,20);
+    statusBarWidget->resize(10,10);
+    //statusBarWidget->hide();
     statusBarWidget->setSizeGripEnabled(true);
+    */
 
     //Webview
     view = new QWebView(this);
@@ -46,7 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
     //quit->setText("X");
     quit->setIcon(closeIcon);
     quit->resize(20,20);
-    quit->move(980,0);
+    quit->move(975,5);
     quit->setAutoDefault(false);
     quit->setDefault(false);
     quit->setFont(QFont("Times",8));
@@ -59,7 +63,7 @@ MainWindow::MainWindow(QWidget *parent)
     //minimize->setText("_");
     minimize->setIcon(minIcon);
     minimize->resize(20,20);
-    minimize->move(940,0);
+    minimize->move(935,5);
     minimize->setAutoDefault(false);
     minimize->setDefault(false);
     minimize->setFont(QFont("Times",8));
@@ -72,7 +76,7 @@ MainWindow::MainWindow(QWidget *parent)
     minmaxtoggle = new QPushButton(this);
     minmaxtoggle->setIcon(maxIcon);
     minmaxtoggle->resize(20,20);
-    minmaxtoggle->move(960,0);
+    minmaxtoggle->move(955,5);
     minmaxtoggle->setAutoDefault(false);
     minmaxtoggle->setDefault(false);
     minmaxtoggle->setFont(QFont("Times",8));
@@ -139,25 +143,6 @@ void MainWindow::WinMinMaxToggle(){
     }
 
 }
-/*
-bool urlExists(QUrl theurl){
-    QTextStream out(stdout);
-    QTcpSocket socket;
-    socket.connectToHost(theurl.host(), 80);
-    if (socket.waitForConnected()) {
-        socket.write("HEAD" + theurl.path().toUtf8() + " HTTP/1.1\r\n"
-                     "Host: " + theurl.host().toUtf8() + "\r\n\r\n");
-        if (socket.waitForReadyRead()) {
-            QByteArray bytes = socket.readAll();
-            if (bytes.contains("200 OK")) {
-                out << "whassup\n";
-                return true;
-            }
-        }
-    }
-    return false;
-}
-*/
 
 //taken from stack overflow 
 bool urlExists(QUrl theurl){
@@ -203,11 +188,35 @@ bool urlExists(QUrl theurl){
 
 void MainWindow::launchURL()
 {
-   /*if (lineEdit1->text().toStdString().substr(0,7)!="http://"){
-       std::string editstr="http://"+lineEdit1->text().toStdString();
+  std::string urlstring = lineEdit1->text().toStdString();
+   /*if (urlstring.substr(0,11)!="http://www."){
+       //initialize manipulated string
+       std::string editstr;
+       //if there is an http but no www. then
+       if(urlstring.substr(0,7)=="http://"){
+            editstr="http://www."+urlstring.substr(7,urlstring.length()-7);
+       
+       }
+       //If there is www. but no http
+       else if(urlstring.substr(0,4)=="www."){
+            editstr="http://"+urlstring;
+       
+       }
+       else{ 
+            editstr="http://www."+lineEdit1->text().toStdString();
+       }
        QString qeditstr = QString::fromStdString(editstr);
        lineEdit1->setText(qeditstr); 
    }*/
+
+   if (urlstring.substr(0,7)!="http://"){
+       std::string editstr;
+
+       editstr="http://"+urlstring;
+       QString qeditstr = QString::fromStdString(editstr);
+       lineEdit1->setText(qeditstr); 
+   
+   }
    
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
@@ -257,15 +266,22 @@ void MainWindow::keyPressEvent(QKeyEvent *event){
 void MainWindow::resizeEvent(QResizeEvent *event){
    QTextStream out(stdout);
    //out << "I'm here."; 
+                //int adjXdiff = -1*(rs_global_mpos.x() - global_mpos.x());
+                
+                //int adjYdiff = (event->globalPos().y() - global_mpos.y());
+                
+                //QPoint adjGlobalDifference = QPoint(adjXdiff,adjYdiff);
+                //QPoint movePoint(mpos.x() - adjXdiff, mpos.y());
+                //move(rs_global_mpos - movePoint);
    QSize MWSize = this->size();
    int nheight = MWSize.height();
    int nwidth = MWSize.width();
    view->resize(nwidth,nheight-80);
    lineEdit1->resize(nwidth-200,20);
    urlLaunch->move(nwidth-180,20);
-   quit->move(nwidth-20,0);
-   minmaxtoggle->move(nwidth-40,0);
-   minimize->move(nwidth-60,0);
+   quit->move(nwidth-25,5);
+   minmaxtoggle->move(nwidth-45,5);
+   minimize->move(nwidth-65,5);
    /*out << nheight;
    out << " , "; 
    out << nwidth;
@@ -274,7 +290,7 @@ void MainWindow::resizeEvent(QResizeEvent *event){
 }
 
 
-//Below two classes from Qt Shaped Clock example
+//Below two classes partially from Qt Shaped Clock example
 void MainWindow::mousePressEvent(QMouseEvent *event){
 //From Qt Documentation:
 //Reason why pos() wasn't working is because the global
@@ -283,7 +299,12 @@ void MainWindow::mousePressEvent(QMouseEvent *event){
 //possibly causing jumping behavior
 
     if (event->button() == Qt::LeftButton){
+        //Coordinates have been mapped such that the mouse position is relative to the
+        //upper left of the main window
         mpos = event->globalPos() - frameGeometry().topLeft();
+        global_mpos = event->globalPos();
+        storeWidth = this->width();
+        storeHeight= this->height();
         event->accept();
     
     }
@@ -291,9 +312,93 @@ void MainWindow::mousePressEvent(QMouseEvent *event){
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event){
-    if (event->buttons()==Qt::LeftButton){
+   
+    ResizeDirection rs_dir;
+
+    //mapped mouse relative to upper left of window
+    rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
+    rs_global_mpos=event->globalPos();
+    QTextStream out(stdout);
+    
+    bool resizeZone=false;
+    //upper left corner resize implementation
+    if ( (abs(rs_mpos.x()) < 10 && abs(rs_mpos.y()) < 10) ||
+         (abs(rs_mpos.x()) > this->width()-10 && abs(rs_mpos.y()) <10)  
+         ){
+        
+        resizeZone=true;
+        
+        //Below for debugging
+        /*
+        out << rs_mpos.x() << " , " << rs_mpos.y() << "\n";
+        out << "window: " << this->width() << " , " << this->height() << "\n";
+        out << "globalpos: " << event->globalPos().x() << " , " 
+            << event->globalPos().y() << "\n";
+        */
+    }
+
+    if ( (abs(rs_mpos.x()) < 10 && abs(rs_mpos.y()) < 10)){
+            this->setCursor(Qt::SizeFDiagCursor);
+    
+            if (event->buttons()==Qt::LeftButton && resizeZone==true){
+
+                QPoint globalDifference = event->globalPos()-global_mpos;
+                move(event->globalPos() - mpos);
+                resize(storeWidth - globalDifference.x()
+                    ,storeHeight -globalDifference.y());
+                event->accept();
+                resizeZone=false;
+            }
+
+    }
+    else if(abs(rs_mpos.x()) > this->width()-10 && abs(rs_mpos.y()) <10){
+        this->setCursor(Qt::SizeBDiagCursor);
+    
+    
+
+            if (event->buttons()==Qt::LeftButton && resizeZone==true){
+                
+                //flip over x sign because now relative to upper right
+                int adjXdiff = -1*(event->globalPos().x() - global_mpos.x());
+                
+                int adjYdiff = (event->globalPos().y() - global_mpos.y());
+                
+                QPoint adjGlobalDifference = QPoint(adjXdiff,adjYdiff);
+                QPoint movePoint(mpos.x() - adjXdiff, mpos.y());
+                //move(event->globalPos()-movePoint);
+                move(event->globalPos()-mpos);
+                resize(storeWidth-adjXdiff, storeHeight-adjYdiff);
+                event->accept();
+                resizeZone=false;
+            }
+
+    }
+
+    //in any move event if it is not in a resize region use the default cursor
+    else{
+    
+        this->setCursor(Qt::ArrowCursor);
+    }
+    
+    //manual resize section
+    /*if (event->buttons()==Qt::LeftButton && resizeZone==true){
+        
+        //move then resize to difference of old position
+        //jumping behavior
+        
+        QPoint globalDifference = event->globalPos()-global_mpos;
+        move(event->globalPos() - mpos);
+        resize(storeWidth - globalDifference.x()
+                ,storeHeight -globalDifference.y());
+        event->accept();
+        resizeZone=false;
+    }*/
+
+    //simple move section
+    if (event->buttons()==Qt::LeftButton && resizeZone==false){
         move(event->globalPos() - mpos);
         event->accept();
     }
+    
 
 }
