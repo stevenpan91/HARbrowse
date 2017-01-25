@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     //this->mainWinState = Min;
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
     this->setMouseTracking(true); //for resize event
+    this->setStyleSheet(".QMainWindow{border: 0.5px solid black; border-radius: 5px;}");
     QStyle *style = qApp->style();
 
     /*
@@ -240,6 +241,7 @@ void MainWindow::displayErrorHTML(){
 
 
 void MainWindow::hideEvent(QHideEvent *event){
+    event->accept();
 }
 
 void MainWindow::showEvent(QShowEvent *event){
@@ -252,8 +254,9 @@ void MainWindow::showEvent(QShowEvent *event){
     else if(this->mainWinState==Min){
     //    out<<"I come out as Min";
         this->setWindowState(Qt::WindowNoState);
-    //    this->showNormal();
-        }
+    }
+
+    event->accept();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event){
@@ -265,28 +268,25 @@ void MainWindow::keyPressEvent(QKeyEvent *event){
 
 void MainWindow::resizeEvent(QResizeEvent *event){
    QTextStream out(stdout);
-   //out << "I'm here."; 
-                //int adjXdiff = -1*(rs_global_mpos.x() - global_mpos.x());
-                
-                //int adjYdiff = (event->globalPos().y() - global_mpos.y());
-                
-                //QPoint adjGlobalDifference = QPoint(adjXdiff,adjYdiff);
-                //QPoint movePoint(mpos.x() - adjXdiff, mpos.y());
-                //move(rs_global_mpos - movePoint);
    QSize MWSize = this->size();
+
+   //get current window dimensions
    int nheight = MWSize.height();
    int nwidth = MWSize.width();
+   
+   //Resize webview portion with window
    view->resize(nwidth,nheight-80);
+
+   //Resize url bar with window
    lineEdit1->resize(nwidth-200,20);
+
+   //Move all buttons so they're in the right spot
    urlLaunch->move(nwidth-180,20);
    quit->move(nwidth-25,5);
    minmaxtoggle->move(nwidth-45,5);
    minimize->move(nwidth-65,5);
-   /*out << nheight;
-   out << " , "; 
-   out << nwidth;
-   out << "\n";*/
-                
+   
+   event->accept();                
 }
 
 
@@ -313,20 +313,27 @@ void MainWindow::mousePressEvent(QMouseEvent *event){
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event){
    
-    ResizeDirection rs_dir;
 
     //mapped mouse relative to upper left of window
     rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
-    rs_global_mpos=event->globalPos();
     QTextStream out(stdout);
-    
-    bool resizeZone=false;
-    //upper left corner resize implementation
-    if ( (abs(rs_mpos.x()) < 10 && abs(rs_mpos.y()) < 10) ||
-         (abs(rs_mpos.x()) > this->width()-10 && abs(rs_mpos.y()) <10)  
+
+    //How much of the corner is considered a "resizing zone"
+    //I was experiencing jumping behavior with rs_size is 10 so
+    //I recommend rs_size=50
+    int rs_size=50;
+    int min_size=100;
+   
+    //Big if statement checks if your mouse is in the upper left,
+    //upper right, lower left, and lower right 
+    if (  //(this->width()>min_size && this->height()>min_size) && (
+         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size) ||
+         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size) || 
+         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size) ||
+         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size)
+        // ) 
          ){
         
-        resizeZone=true;
         
         //Below for debugging
         /*
@@ -335,70 +342,128 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         out << "globalpos: " << event->globalPos().x() << " , " 
             << event->globalPos().y() << "\n";
         */
-    }
 
-    if ( (abs(rs_mpos.x()) < 10 && abs(rs_mpos.y()) < 10)){
+        //Use 2x2 matrix to adjust how much you are resizing and how much you
+        //are moving. Since the default coordinates are relative to upper left
+        //You cannot just have one way of resizing and moving the window.
+        //It will depend on which corner you are referring to
+
+        //adjXfac and adjYfac are for calculating the difference between your
+        //current mouse position and where your mouse was when you clicked.
+        //With respect to the upper left corner, moving your mouse to the right
+        //is an increase in coordinates, moving mouse to the bottom is increase
+        //etc.
+        //However, with other corners this is not so and since I chose to subtract
+        //This difference at the end for resizing, adjXfac and adjYfac should be
+        //1 or -1 depending on whether moving the mouse in the x or y directions
+        //increases or decreases the coordinates respectively. 
+
+        //transXfac transYfac is to move the window over. Resizing the window does not
+        //automatically pull the window back toward your mouse. This is what
+        //transfac is for (translate window in some direction). It will be either
+        //0 or 1 depending on whether you need to translate in that direction.
+
+        //Initiate matrix
+        int adjXfac=0;
+        int adjYfac=0;
+        int transXfac=0;
+        int transYfac=0;
+
+        //Upper left corner section
+        if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
             this->setCursor(Qt::SizeFDiagCursor);
     
-            if (event->buttons()==Qt::LeftButton && resizeZone==true){
+            
+            //Upper left. No flipping of axis, no translating window
+               adjXfac=1;
+               adjYfac=1;
+                
+               transXfac=0;
+               transYfac=0;
 
-                QPoint globalDifference = event->globalPos()-global_mpos;
-                move(event->globalPos() - mpos);
-                resize(storeWidth - globalDifference.x()
-                    ,storeHeight -globalDifference.y());
-                event->accept();
-                resizeZone=false;
-            }
 
-    }
-    else if(abs(rs_mpos.x()) > this->width()-10 && abs(rs_mpos.y()) <10){
-        this->setCursor(Qt::SizeBDiagCursor);
+        }
+        //Upper right corner section
+        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size){
+            this->setCursor(Qt::SizeBDiagCursor);
     
     
+            //upper right. Flip displacements in mouse movement across x axis
+            //and translate window left toward the mouse
+            adjXfac=-1;
+            adjYfac=1;
 
-            if (event->buttons()==Qt::LeftButton && resizeZone==true){
+            transXfac = 1;
+            transYfac =0;    
+
+
+        }
+        //Lower left corner section
+        else if(abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size){
+            this->setCursor(Qt::SizeBDiagCursor);
                 
-                //flip over x sign because now relative to upper right
-                int adjXdiff = -1*(event->globalPos().x() - global_mpos.x());
+            //lower left. Flip displacements in mouse movement across y axis
+            //and translate window up toward mouse
+            adjXfac=1;
+            adjYfac=-1;
+
+            transXfac=0;
+            transYfac=1;
+            
+
+        }   
+        //Lower right corner section
+        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size){
+            this->setCursor(Qt::SizeFDiagCursor);
+            
+            //lower right. Flip mouse displacements on both axis and
+            //translate in both x and y direction left and up toward mouse.
+            adjXfac=-1;
+            adjYfac=-1;
+
+            transXfac=1;
+            transYfac=1;
+        }
+       
+
+        if (event->buttons()==Qt::LeftButton ){
+              
+           
+           //Calculation of displacement. adjXfac=1 means normal displacement
+           //adjXfac=-1 means flip over axis     
+           int adjXdiff = adjXfac*(event->globalPos().x() - global_mpos.x());
                 
-                int adjYdiff = (event->globalPos().y() - global_mpos.y());
-                
-                QPoint adjGlobalDifference = QPoint(adjXdiff,adjYdiff);
-                QPoint movePoint(mpos.x() - adjXdiff, mpos.y());
-                //move(event->globalPos()-movePoint);
-                move(event->globalPos()-mpos);
+           int adjYdiff = adjYfac*(event->globalPos().y() - global_mpos.y());
+           
+           //if transfac is 1 then movepoint of mouse is translated     
+           QPoint movePoint(mpos.x() - transXfac*adjXdiff, mpos.y()-transYfac*adjYdiff);
+            
+            if (storeWidth-adjXdiff>min_size && storeHeight-adjYdiff>min_size){
+                move(event->globalPos()-movePoint);
+           
                 resize(storeWidth-adjXdiff, storeHeight-adjYdiff);
+            }     
                 event->accept();
-                resizeZone=false;
-            }
+                
+                
+        }
 
     }
+
 
     //in any move event if it is not in a resize region use the default cursor
+    //Move window
     else{
     
         this->setCursor(Qt::ArrowCursor);
+        //simple move section
+        if (event->buttons()==Qt::LeftButton){
+            move(event->globalPos() - mpos);
+            event->accept();
+        }
     }
     
-    //manual resize section
-    /*if (event->buttons()==Qt::LeftButton && resizeZone==true){
-        
-        //move then resize to difference of old position
-        //jumping behavior
-        
-        QPoint globalDifference = event->globalPos()-global_mpos;
-        move(event->globalPos() - mpos);
-        resize(storeWidth - globalDifference.x()
-                ,storeHeight -globalDifference.y());
-        event->accept();
-        resizeZone=false;
-    }*/
 
-    //simple move section
-    if (event->buttons()==Qt::LeftButton && resizeZone==false){
-        move(event->globalPos() - mpos);
-        event->accept();
-    }
     
 
 }
