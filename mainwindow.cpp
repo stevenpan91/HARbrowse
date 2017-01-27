@@ -12,7 +12,9 @@
 #include <QString>
 #include <QDebug>
 #include <QTcpSocket>
+#include <QFileInfo>
 #include <string>
+#include <iostream>
 #include <QVBoxLayout>
 #include <QStatusBar>
 #include <QStyle>
@@ -164,7 +166,7 @@ bool urlExists(QUrl theurl){
         socket.connectToHost(theurl.host(), 80);
         if (socket.waitForConnected()) {
             //Standard http request
-            socket.write("GET /index.html HTTP/1.1\r\n"
+            socket.write("GET / HTTP/1.1\r\n"
                      "host: " + theurl.host().toUtf8() + "\r\n\r\n");
             if (socket.waitForReadyRead()) {
                 while(socket.bytesAvailable()){
@@ -220,7 +222,7 @@ void MainWindow::launchURL()
        lineEdit1->setText(qeditstr); 
    }*/
 
-   if (urlstring.substr(0,7)!="http://"){
+   if (urlstring.substr(0,7)!="http://" && urlstring.substr(0,8)!="https://"){
        std::string editstr;
 
        editstr="http://"+urlstring;
@@ -241,9 +243,7 @@ void MainWindow::launchURL()
 }
 
 void MainWindow::displayErrorHTML(){
-       std::string path="home/steven/Projects/HARbrowse";
-       std::string fullpath="file:///"+path+"/urlinvalid.html";
-       view->load(QUrl::fromUserInput(QString::fromStdString(fullpath)));    
+       view->load(QUrl::fromLocalFile(QFileInfo("urlinvalid.html").absoluteFilePath())); 
            //display error html page
 
 
