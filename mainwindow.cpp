@@ -43,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
     view->resize(1000,520);
     view->move(0,50);
     view->setUrl(QUrl("http://google.com"));
-    
+    connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));    
 
     //Quit button section
     QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
@@ -124,6 +124,16 @@ MainWindow::MainWindow(QWidget *parent)
     
 
 }
+
+void MainWindow::updateUrl()
+{
+//    QTextStream out(stdout);
+//    out << "I am here";
+    lineEdit1->setText(view->url().toString());
+
+
+}
+
 
 void MainWindow::WinMinimize()
 {

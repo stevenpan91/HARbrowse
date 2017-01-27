@@ -25,6 +25,7 @@ class MainWindow : public QMainWindow
         void resizeEvent(QResizeEvent *event);
         void mousePressEvent(QMouseEvent *event);
         void mouseMoveEvent(QMouseEvent *event);
+        void updateUrl();
     protected:  
     private:
         enum WindowState {Min, Max, Full};
