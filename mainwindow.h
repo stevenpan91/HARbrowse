@@ -1,6 +1,6 @@
 #define WIN_X_SIZE 1000
 #define WIN_Y_SIZE 600
-
+#include <string>
 #include <QMainWindow>
 #include <QPushButton>
 #include <QtWebKit>
@@ -26,6 +26,7 @@ class MainWindow : public QMainWindow
         void mousePressEvent(QMouseEvent *event);
         void mouseMoveEvent(QMouseEvent *event);
         void updateUrl();
+        bool urlExists(QUrl theurl);
     protected:  
     private:
         enum WindowState {Min, Max, Full};
@@ -37,12 +38,14 @@ class MainWindow : public QMainWindow
         QPoint rs_global_mpos;
         int storeWidth; //fix window size at mouseclick for resizing
         int storeHeight;
+        std::string pageTitle; //Get webpage html title
         QWebView *view;
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;
         QPushButton *quit;
         QPushButton *minmaxtoggle;
         QPushButton *minimize;
-        
+        QTabWidget *tabControl;
+            
 };
 

@@ -13,6 +13,8 @@
 #include <QDebug>
 #include <QTcpSocket>
 #include <QFileInfo>
+#include <QTabWidget>
+#include <QTextCodec>
 #include <string>
 #include <iostream>
 #include <QVBoxLayout>
@@ -39,11 +41,17 @@ MainWindow::MainWindow(QWidget *parent)
     //statusBarWidget->hide();
     statusBarWidget->setSizeGripEnabled(true);
     */
+    //Tab Page section
+    tabControl = new QTabWidget(this);
+    tabControl->resize(1000,520);
+    tabControl->move(0,50);
 
     //Webview
-    view = new QWebView(this);
-    view->resize(1000,520);
-    view->move(0,50);
+    //view = new QWebView(this);
+    view=new QWebView(tabControl);
+    tabControl->addTab(view,QString::fromStdString("Test"));
+    //view->resize(1000,520);
+    //view->move(0,50);
     view->setUrl(QUrl("http://google.com"));
     connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));    
 
@@ -105,6 +113,7 @@ MainWindow::MainWindow(QWidget *parent)
     urlLaunch->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
     connect(urlLaunch,SIGNAL(clicked()),this,SLOT(launchURL()));
 
+    
     //Print test
     /*qtextstream out(stdout);
     out << "whassup\n";*/
@@ -158,7 +167,7 @@ void MainWindow::WinMinMaxToggle(){
 }
 
 //taken from stack overflow 
-bool urlExists(QUrl theurl){
+bool MainWindow::urlExists(QUrl theurl){
     QTextStream out(stdout);
     QTcpSocket socket;
     QByteArray buffer;
@@ -177,7 +186,17 @@ bool urlExists(QUrl theurl){
                     while(packetSize>0)
                     {
                         //Output server response for debugging
-                        out << "[" << buffer.data() << "]" <<endl;
+                        out << "[" << buffer.data() << "]"; //<<endl;
+                        
+                        int titlestart=buffer.indexOf("<title>")+7;
+                        int titleend=buffer.indexOf("</title>");
+                        std::string pagetitle=QTextCodec::codecForMib(106)->
+                            toUnicode(buffer.mid(titlestart,titleend-titlestart)).toStdString();
+
+                        //get webpage html title
+                        if(buffer.contains("<title>")){
+                            tabControl->setTabText(0,QString::fromStdString(pagetitle));
+                        }
 
                         //set Url if 200, 301, or 302 response given assuming that server will redirect
                         if (buffer.contains("200 OK") ||
