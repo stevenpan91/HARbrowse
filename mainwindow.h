@@ -25,6 +25,7 @@ class MainWindow : public QMainWindow
         void resizeEvent(QResizeEvent *event);
         void mousePressEvent(QMouseEvent *event);
         void mouseMoveEvent(QMouseEvent *event);
+        void replyFinished(QNetworkReply *pReply);
         void updateUrl();
         bool urlExists(QUrl theurl);
     protected:  
@@ -46,6 +47,8 @@ class MainWindow : public QMainWindow
         QPushButton *minmaxtoggle;
         QPushButton *minimize;
         QTabWidget *tabControl;
-            
+        QFrame *frame;
+        QNetworkAccessManager *m_manager; 
+        void fetchUrl(std::string urlstr);
 };
 

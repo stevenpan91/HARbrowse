@@ -18,6 +18,9 @@
 #include <string>
 #include <iostream>
 #include <QVBoxLayout>
+#include <QPainter>
+#include <QBitmap>
+#include <QNetworkReply>
 #include <QStatusBar>
 #include <QStyle>
 
@@ -30,9 +33,22 @@ MainWindow::MainWindow(QWidget *parent)
     this->setToolTip("This is a test");
     //this->mainWinState = Min;
     this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+    this->setAttribute(Qt::WA_TranslucentBackground,true);
     this->setMouseTracking(true); //for resize event
-    this->setStyleSheet(".QMainWindow{border: 0.5px solid black; border-radius: 5px;}");
+    //this->setStyleSheet("QMainWindow{background-color:rgba(150,255,255,100);border: 0.5px solid black; border-radius: 5px;}");
     QStyle *style = qApp->style();
+
+    frame=new QFrame(this);
+    this->setCentralWidget(frame);
+    frame->resize(WIN_X_SIZE,WIN_Y_SIZE);
+    frame->move(0,0);
+    frame->setStyleSheet(".QFrame{background-color:rgba(120,120,120,180);border: 0px solid black; border-radius: 5px;}");
+    
+    m_manager=new QNetworkAccessManager(this);
+    connect(m_manager,SIGNAL(finished(QNetworkReply*)),
+            this, SLOT(replyFinished(QNetworkReply*)));
+
+    //fetchUrl("https://github.com");
 
     /*
     QStatusBar *statusBarWidget = new QStatusBar(this);
@@ -45,13 +61,17 @@ MainWindow::MainWindow(QWidget *parent)
     tabControl = new QTabWidget(this);
     tabControl->resize(1000,520);
     tabControl->move(0,50);
+    tabControl->setAttribute(Qt::WA_TranslucentBackground,true);
+    tabControl->setStyleSheet("background:transparent");
 
     //Webview
     //view = new QWebView(this);
     view=new QWebView(tabControl);
-    tabControl->addTab(view,QString::fromStdString("Test"));
+    tabControl->addTab(view,QString::fromStdString(" "));
     //view->resize(1000,520);
     //view->move(0,50);
+    view->setStyleSheet("background:transparent");
+    view->setAttribute(Qt::WA_TranslucentBackground,true);
     view->setUrl(QUrl("http://google.com"));
     connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));    
 
@@ -122,6 +142,7 @@ MainWindow::MainWindow(QWidget *parent)
     urlLaunch->show();
     quit->show();
     view->show();
+    frame->show();
 
 
     /*QFile data("myfile");
@@ -136,12 +157,41 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
+void MainWindow::replyFinished(QNetworkReply *pReply){
+    QByteArray data=pReply->readAll();
+    //QTextCodec *codec=QTextCodec::codecForMib(106);
+    //QString str = codec->toUnicode(data);
+
+    //QTextStream out(stdout);
+    //out << "fetch out" << str;
+
+    int titlestart=data.indexOf("<title>")+7;
+    int titleend=data.indexOf("</title>");
+    
+    //convert to Unicode for foreign languages
+    QString qpagetitle=QTextCodec::codecForMib(106)->
+                       toUnicode(data.mid(titlestart,titleend-titlestart));
+    
+
+    //get webpage html title
+    if(data.contains("<title>")){
+        tabControl->setTabText(0,qpagetitle);
+    }
+}
+
+void MainWindow::fetchUrl(std::string urlstr){
+    QString qStrUrl = QString::fromStdString(urlstr);
+    QUrl theurl = QUrl::fromUserInput(qStrUrl);
+    m_manager->get(QNetworkRequest(theurl));
+
+}
+
 void MainWindow::updateUrl()
 {
 //    QTextStream out(stdout);
 //    out << "I am here";
     lineEdit1->setText(view->url().toString());
-
+    urlExists(view->url());
 
 }
 
@@ -176,10 +226,10 @@ bool MainWindow::urlExists(QUrl theurl){
         if (socket.waitForConnected()) {
             //Standard http request
             socket.write("GET / HTTP/1.1\r\n"
-                     "host: " + theurl.host().toUtf8() + "\r\n\r\n");
+            //socket.write("HEAD " + theurl.path().toUtf8() + " HTTP/1.1\r\n" 
+                "host: " + theurl.host().toUtf8() + "\r\n\r\n");
             if (socket.waitForReadyRead()) {
                 while(socket.bytesAvailable()){
-                    //QByteArray bytes = socket.readAll();
                     buffer.append(socket.readAll());
                     //int packetSize = getPacketSize(buffer);
                     int packetSize=buffer.size();
@@ -188,7 +238,7 @@ bool MainWindow::urlExists(QUrl theurl){
                         //Output server response for debugging
                         out << "[" << buffer.data() << "]"; //<<endl;
                         
-                        int titlestart=buffer.indexOf("<title>")+7;
+                       /* int titlestart=buffer.indexOf("<title>")+7;
                         int titleend=buffer.indexOf("</title>");
                         std::string pagetitle=QTextCodec::codecForMib(106)->
                             toUnicode(buffer.mid(titlestart,titleend-titlestart)).toStdString();
@@ -198,10 +248,17 @@ bool MainWindow::urlExists(QUrl theurl){
                             tabControl->setTabText(0,QString::fromStdString(pagetitle));
                         }
 
+                        */
+
                         //set Url if 200, 301, or 302 response given assuming that server will redirect
+                        //Some pages such as play.google do not have an HTTP response...possibly
+                        //differences in http protocol. Add exception for "Moved"
                         if (buffer.contains("200 OK") ||
                             buffer.contains("302 Found") ||
-                            buffer.contains("301 Moved")) {
+                            buffer.contains("301 Moved") ||
+                            buffer.contains("Moved")
+                            ) {
+                            fetchUrl(lineEdit1->text().toStdString());
                             return true;
                         }  
                         buffer.remove(0,packetSize);
@@ -303,8 +360,23 @@ void MainWindow::resizeEvent(QResizeEvent *event){
    int nheight = MWSize.height();
    int nwidth = MWSize.width();
    
+    frame->resize(nwidth,nheight);
+
+   //redraw border with round corners
+    QBitmap bmp(size());
+    bmp.clear();
+    QPainter painter(&bmp);
+    QPen pen(QColor(Qt::black));
+    QBrush brush(QColor(Qt::black));
+    painter.setPen(pen);
+    painter.setBrush(brush);
+    painter.drawRoundedRect(0,0,nwidth,nheight,20.0f,20.0f,Qt::AbsoluteSize);
+    setMask(bmp);
+   
+
    //Resize webview portion with window
    view->resize(nwidth,nheight-80);
+   tabControl->resize(nwidth,nheight-80);
 
    //Resize url bar with window
    lineEdit1->resize(nwidth-200,20);
