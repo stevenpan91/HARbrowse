@@ -21,6 +21,7 @@
 #include <QPainter>
 #include <QBitmap>
 #include <QNetworkReply>
+#include <QNetworkProxyFactory>
 #include <QStatusBar>
 #include <QStyle>
 
@@ -73,7 +74,10 @@ MainWindow::MainWindow(QWidget *parent)
     view->setStyleSheet("background:transparent");
     view->setAttribute(Qt::WA_TranslucentBackground,true);
     view->setUrl(QUrl("http://google.com"));
-    connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));    
+    connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+    QNetworkProxyFactory::setUseSystemConfiguration(true);
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled,true);    
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::AutoLoadImages,true);    
 
     //Quit button section
     QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
@@ -310,7 +314,8 @@ void MainWindow::launchURL()
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
    if (urlExists(url)){
-       view->setUrl(url);}
+       view->load(url);}
+       //view->setUrl(url);}
    else{
        qDebug() << QString("Invalid URL: %1").arg(url.toString());
        displayErrorHTML();    
