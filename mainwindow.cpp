@@ -30,8 +30,9 @@
 MainWindow::MainWindow(QWidget *parent) 
     : QMainWindow(parent)
 {
-
-    views=(QWebView**)malloc(sizeof(QWebView*)*4);
+    tabAmount=0;
+    maxTabs=10;
+    views=(QWebView**)malloc(sizeof(QWebView*)*maxTabs);
 
     //Main window
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
@@ -88,6 +89,7 @@ MainWindow::MainWindow(QWidget *parent)
     //view = new QWebView(this);
     view=new QWebView(tabControl);
     tabControl->addTab(view,QString::fromStdString(" "));
+    tabAmount++;
     //view->resize(1000,520);
     //view->move(0,50);
     view->setMouseTracking(true);
@@ -103,6 +105,7 @@ MainWindow::MainWindow(QWidget *parent)
     QToolButton *tb = new QToolButton(this);
     tb->setText("+");
     tabControl->addTab(new QLabel("Add tabs by pressing +"),QString());
+    tabAmount++;
     tabControl->setTabEnabled(1,false);
     tabControl->tabBar()->setTabButton(1,QTabBar::RightSide,tb);
     connect(tb,SIGNAL(clicked()),this,SLOT(incTab()));
@@ -185,14 +188,22 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 void MainWindow::incTab(){
+    //account for first tab and add tab button
+    int index=tabAmount-2;
+
+    if (tabAmount<=maxTabs){
+    views[index]=new QWebView(tabControl);
+    tabControl->addTab(views[index],QString::fromStdString(" "));
+    tabAmount++;
     
-    views[0]=new QWebView(tabControl);
-    tabControl->addTab(views[0],QString::fromStdString(" "));
-    views[0]->setMouseTracking(true);
-    views[0]->setStyleSheet("background:transparent");
-    views[0]->setAttribute(Qt::WA_TranslucentBackground,true);
-    views[0]->load(QUrl("http://www.google.com"));
-    tabControl->tabBar()->moveTab(1,2);
+    views[index]->setMouseTracking(true);
+    views[index]->setStyleSheet("background:transparent");
+    views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
+    views[index]->load(QUrl("http://www.google.com"));
+
+    //move the add tab button over 1
+    //tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    }
 }
 
 void MainWindow::showTime()

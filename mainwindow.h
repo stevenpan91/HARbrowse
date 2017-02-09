@@ -48,7 +48,11 @@ class MainWindow : public QMainWindow
         //Window state
         enum WindowState {Min, Max, Full};
         WindowState mainWinState;
-        
+       
+        //Maximum number of tabs
+        int maxTabs;
+        int tabAmount;
+
         //Resizing parameters
         QPoint mpos; //For dragging, relative mouse position to upper left
         QPoint mpos_2;
