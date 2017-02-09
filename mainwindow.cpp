@@ -18,16 +18,21 @@
 #include <string>
 #include <iostream>
 #include <QVBoxLayout>
+#include <QLabel>
 #include <QPainter>
 #include <QBitmap>
 #include <QNetworkReply>
 #include <QNetworkProxyFactory>
+#include <QNetworkCookieJar>
 #include <QStatusBar>
 #include <QStyle>
 
 MainWindow::MainWindow(QWidget *parent) 
     : QMainWindow(parent)
 {
+
+    views=(QWebView**)malloc(sizeof(QWebView*)*4);
+
     //Main window
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
     this->setWindowTitle("HARbrowse");
@@ -39,31 +44,45 @@ MainWindow::MainWindow(QWidget *parent)
     //this->setStyleSheet("QMainWindow{background-color:rgba(150,255,255,100);border: 0.5px solid black; border-radius: 5px;}");
     QStyle *style = qApp->style();
 
+    //Frame over main window to give round edge and background color
+    
     frame=new QFrame(this);
     this->setCentralWidget(frame);
+    frame->setMouseTracking(true);
     frame->resize(WIN_X_SIZE,WIN_Y_SIZE);
     frame->move(0,0);
-    frame->setStyleSheet(".QFrame{background-color:rgba(120,120,120,180);border: 0px solid black; border-radius: 5px;}");
+    frame->setStyleSheet(".QFrame{background-color:rgba(0,120,100,180);border: 0px solid black; border-radius: 5px;}");
     
+
+    //Update time display
+    QTimer *timer = new QTimer(this);
+    connect(timer,SIGNAL(timeout()),this,SLOT(showTime()));
+    timer->start(1000); //1 second updates
+    timeLabel = new QLabel(this);
+    timeLabel->setMouseTracking(true);
+    timeLabel->move(930,570);
+    timeLabel->show(); 
+
+
     m_manager=new QNetworkAccessManager(this);
+    
+    //allow cookies for youtube
+    //cookieJar=new QNetworkCookieJar();
+    //m_manager->setCookieJar(cookieJar);
+
     connect(m_manager,SIGNAL(finished(QNetworkReply*)),
             this, SLOT(replyFinished(QNetworkReply*)));
+    
 
-    //fetchUrl("https://github.com");
 
-    /*
-    QStatusBar *statusBarWidget = new QStatusBar(this);
-    statusBarWidget->move(0,0);
-    statusBarWidget->resize(10,10);
-    //statusBarWidget->hide();
-    statusBarWidget->setSizeGripEnabled(true);
-    */
     //Tab Page section
     tabControl = new QTabWidget(this);
+    tabControl->setMouseTracking(true);
     tabControl->resize(1000,520);
     tabControl->move(0,50);
     tabControl->setAttribute(Qt::WA_TranslucentBackground,true);
-    tabControl->setStyleSheet("background:transparent");
+    //tabControl->setStyleSheet("background:transparent");
+
 
     //Webview
     //view = new QWebView(this);
@@ -71,13 +90,28 @@ MainWindow::MainWindow(QWidget *parent)
     tabControl->addTab(view,QString::fromStdString(" "));
     //view->resize(1000,520);
     //view->move(0,50);
+    view->setMouseTracking(true);
     view->setStyleSheet("background:transparent");
     view->setAttribute(Qt::WA_TranslucentBackground,true);
-    view->setUrl(QUrl("http://google.com"));
-    connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
     QNetworkProxyFactory::setUseSystemConfiguration(true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled,true);    
     QWebSettings::globalSettings()->setAttribute(QWebSettings::AutoLoadImages,true);    
+    view->load(QUrl("http://www.google.com"));
+    //view->page()->settings()->clearMemoryCaches();
+    //view->reload();
+
+    QToolButton *tb = new QToolButton(this);
+    tb->setText("+");
+    tabControl->addTab(new QLabel("Add tabs by pressing +"),QString());
+    tabControl->setTabEnabled(1,false);
+    tabControl->tabBar()->setTabButton(1,QTabBar::RightSide,tb);
+    connect(tb,SIGNAL(clicked()),this,SLOT(incTab()));
+
+
+    //view->setEnabled(true); 
+    //view->page()->setNetworkAccessManager(m_manager);
+    
+    connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
 
     //Quit button section
     QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
@@ -138,28 +172,36 @@ MainWindow::MainWindow(QWidget *parent)
     connect(urlLaunch,SIGNAL(clicked()),this,SLOT(launchURL()));
 
     
-    //Print test
-    /*qtextstream out(stdout);
-    out << "whassup\n";*/
     
     lineEdit1->show();
     urlLaunch->show();
     quit->show();
     view->show();
+    
     frame->show();
 
-
-    /*QFile data("myfile");
-
-    if (data.open(QFile::WriteOnly)){
-        QTextStream out(&data);
-        out << "It's a beautiful morning." << endl;
-
-    }
-    */
-    
+    free(views);
 
 }
+
+void MainWindow::incTab(){
+    
+    views[0]=new QWebView(tabControl);
+    tabControl->addTab(views[0],QString::fromStdString(" "));
+    views[0]->setMouseTracking(true);
+    views[0]->setStyleSheet("background:transparent");
+    views[0]->setAttribute(Qt::WA_TranslucentBackground,true);
+    views[0]->load(QUrl("http://www.google.com"));
+    tabControl->tabBar()->moveTab(1,2);
+}
+
+void MainWindow::showTime()
+{
+    QTime time = QTime::currentTime();
+    timeLabel->setText(time.toString());
+
+}
+
 
 void MainWindow::replyFinished(QNetworkReply *pReply){
     QByteArray data=pReply->readAll();
@@ -320,7 +362,6 @@ void MainWindow::launchURL()
        qDebug() << QString("Invalid URL: %1").arg(url.toString());
        displayErrorHTML();    
        }
-
 }
 
 void MainWindow::displayErrorHTML(){
@@ -378,7 +419,9 @@ void MainWindow::resizeEvent(QResizeEvent *event){
     painter.drawRoundedRect(0,0,nwidth,nheight,20.0f,20.0f,Qt::AbsoluteSize);
     setMask(bmp);
    
-
+   //Move clock
+   timeLabel->move(nwidth-70,nheight-30);
+    
    //Resize webview portion with window
    view->resize(nwidth,nheight-80);
    tabControl->resize(nwidth,nheight-80);
@@ -417,21 +460,9 @@ void MainWindow::mousePressEvent(QMouseEvent *event){
 
 }
 
-void MainWindow::mouseMoveEvent(QMouseEvent *event){
-   
-
-    //mapped mouse relative to upper left of window
-    rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
-    QTextStream out(stdout);
-
-    //How much of the corner is considered a "resizing zone"
-    //I was experiencing jumping behavior with rs_size is 10 so
-    //I recommend rs_size=50
+bool MainWindow::inResizeZone(QPoint rs_mpos){
     int rs_size=50;
-    int min_size=100;
-   
-    //Big if statement checks if your mouse is in the upper left,
-    //upper right, lower left, and lower right 
+
     if (  //(this->width()>min_size && this->height()>min_size) && (
          (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size) ||
          (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size) || 
@@ -439,7 +470,44 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
          (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size)
         // ) 
          ){
-        
+            return true;
+         }
+
+    return false;
+}
+
+
+void MainWindow::mouseMoveEvent(QMouseEvent *event){
+   
+
+    //mapped mouse relative to upper left of window
+    rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
+    QTextStream out(stdout);
+    //How much of the corner is considered a "resizing zone"
+    //I was experiencing jumping behavior with rs_size is 10 so
+    //I recommend rs_size=50
+    
+    //Modification Note: Resize zone of 50 is too large for cursor change.
+    //Added new method inResizeZone(rs_mpos) where the resize zone is still 50
+    //and a condition is added to window drag movement in this method.
+    //However in this method resize zone is 30 so that mouse cursor change occurs at 30x30
+    //but window drag movement is disabled at 50x50 to avoid jumping
+    int rs_size=50;
+    int min_size=100;
+   
+    //Big if statement checks if your mouse is in the upper left,
+    //upper right, lower left, and lower right 
+    
+    /*if (  //(this->width()>min_size && this->height()>min_size) && (
+         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size) ||
+         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size) || 
+         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size) ||
+         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size)
+        // ) 
+         ){
+    */
+    
+    if (inResizeZone(rs_mpos)){    
         
         //Below for debugging
         /*
@@ -532,7 +600,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         }
        
 
-        if (event->buttons()==Qt::LeftButton ){
+        if (event->buttons()==Qt::LeftButton){
               
            
            //Calculation of displacement. adjXfac=1 means normal displacement

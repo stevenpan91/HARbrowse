@@ -4,6 +4,8 @@
 #include <QMainWindow>
 #include <QPushButton>
 #include <QtWebKit>
+#include <QtWebKitWidgets>
+#include <QLabel>
 #include <QLineEdit>
 namespace Ui{
     class MainWindow;
@@ -16,22 +18,38 @@ class MainWindow : public QMainWindow
         explicit MainWindow(QWidget *parent=0);
         void displayErrorHTML();
     private slots:
-        void launchURL();
+        //window display style related
         void WinMinimize();
         void WinMinMaxToggle();
         void showEvent(QShowEvent * event);
         void hideEvent(QHideEvent * event);
+        
         void keyPressEvent(QKeyEvent *event);
-        void resizeEvent(QResizeEvent *event);
-        void mousePressEvent(QMouseEvent *event);
-        void mouseMoveEvent(QMouseEvent *event);
-        void replyFinished(QNetworkReply *pReply);
+        
+       
+        //related to browsing internet 
+        void launchURL();
         void updateUrl();
-        bool urlExists(QUrl theurl);
+        void replyFinished(QNetworkReply *pReply);
+
+        //timer
+        void showTime();
+
+        //increment tab
+        void incTab();
     protected:  
+        //Mouse
+        void mousePressEvent(QMouseEvent *event) override;
+        void mouseMoveEvent(QMouseEvent *event) override;
+        
+        //window display
+        void resizeEvent(QResizeEvent *event) override;
     private:
+        //Window state
         enum WindowState {Min, Max, Full};
         WindowState mainWinState;
+        
+        //Resizing parameters
         QPoint mpos; //For dragging, relative mouse position to upper left
         QPoint mpos_2;
         QPoint global_mpos; //For resizing, global mouse position at mouse click
@@ -39,7 +57,16 @@ class MainWindow : public QMainWindow
         QPoint rs_global_mpos;
         int storeWidth; //fix window size at mouseclick for resizing
         int storeHeight;
+       
+        //Resize method
+        bool inResizeZone(QPoint rs_mpos);
+
+        //Misc 
         std::string pageTitle; //Get webpage html title
+        
+        //General controls
+        //std::vector<QWebView> views;
+        QWebView **views;
         QWebView *view;
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;
@@ -49,6 +76,11 @@ class MainWindow : public QMainWindow
         QTabWidget *tabControl;
         QFrame *frame;
         QNetworkAccessManager *m_manager; 
+        QNetworkCookieJar *cookieJar;
+        QLabel *timeLabel;
+
+        //methods
         void fetchUrl(std::string urlstr);
+        bool urlExists(QUrl theurl);
 };
 
