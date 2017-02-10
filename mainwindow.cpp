@@ -32,6 +32,8 @@ MainWindow::MainWindow(QWidget *parent)
 {
     tabAmount=0;
     maxTabs=10;
+    
+    //Freed in destructor    
     views=(QWebView**)malloc(sizeof(QWebView*)*maxTabs);
 
     //Main window
@@ -182,9 +184,13 @@ MainWindow::MainWindow(QWidget *parent)
     view->show();
     
     frame->show();
+    
+    
 
+}
+
+MainWindow::~MainWindow(){
     free(views);
-
 }
 
 void MainWindow::incTab(){
@@ -192,18 +198,20 @@ void MainWindow::incTab(){
     int index=tabAmount-2;
 
     if (tabAmount<=maxTabs){
+    
     views[index]=new QWebView(tabControl);
     tabControl->addTab(views[index],QString::fromStdString(" "));
     tabAmount++;
-    
     views[index]->setMouseTracking(true);
     views[index]->setStyleSheet("background:transparent");
     views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
     views[index]->load(QUrl("http://www.google.com"));
-
+    
     //move the add tab button over 1
-    //tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    
     }
+    
 }
 
 void MainWindow::showTime()
