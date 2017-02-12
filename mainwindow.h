@@ -43,7 +43,9 @@ class MainWindow : public QMainWindow
         //Mouse
         void mousePressEvent(QMouseEvent *event) override;
         void mouseMoveEvent(QMouseEvent *event) override;
-        
+        void mouseReleaseEvent(QMouseEvent *event) override;
+
+
         //window display
         void resizeEvent(QResizeEvent *event) override;
     private:
@@ -63,6 +65,7 @@ class MainWindow : public QMainWindow
         QPoint rs_global_mpos;
         int storeWidth; //fix window size at mouseclick for resizing
         int storeHeight;
+        bool resizeLock; //if resizeLock (left mouse press within resize zone) then resize anywhere
        
         //Resize method
         bool inResizeZone(QPoint rs_mpos);
