@@ -31,6 +31,7 @@ class MainWindow : public QMainWindow
         //related to browsing internet 
         void launchURL();
         void updateUrl();
+        void updateUrlBar();
         void replyFinished(QNetworkReply *pReply);
 
         //timer

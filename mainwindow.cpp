@@ -85,11 +85,17 @@ MainWindow::MainWindow(QWidget *parent)
     tabControl->move(0,50);
     tabControl->setAttribute(Qt::WA_TranslucentBackground,true);
     //tabControl->setStyleSheet("background:transparent");
+    
+    connect(tabControl,SIGNAL(currentChanged(int)),this, SLOT(updateUrlBar()));
 
 
     //Webview
     //view = new QWebView(this);
     view=new QWebView(tabControl);
+
+    //backwards compatability to not have to redo all the code that says "view"
+    views[0]=view;
+    
     tabControl->addTab(view,QString::fromStdString(" "));
     tabAmount++;
     //view->resize(1000,520);
@@ -194,8 +200,8 @@ MainWindow::~MainWindow(){
 }
 
 void MainWindow::incTab(){
-    //account for first tab and add tab button
-    int index=tabAmount-2;
+    //account add tab button
+    int index=tabAmount-1;
 
     if (tabAmount<=maxTabs){
     
@@ -207,9 +213,14 @@ void MainWindow::incTab(){
     views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
     views[index]->load(QUrl("http://www.google.com"));
     
+    //views[index]->page()->setNetworkAccessManager(m_manager);
+    //views[index]->show();
+    connect(views[index],SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
     //move the add tab button over 1
     tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
     
+    //focus on new tab
+    tabControl->setCurrentIndex(index); 
     }
     
 }
@@ -224,11 +235,13 @@ void MainWindow::showTime()
 
 void MainWindow::replyFinished(QNetworkReply *pReply){
     QByteArray data=pReply->readAll();
-    //QTextCodec *codec=QTextCodec::codecForMib(106);
-    //QString str = codec->toUnicode(data);
-
-    //QTextStream out(stdout);
-    //out << "fetch out" << str;
+    
+    /*
+    QTextCodec *codec=QTextCodec::codecForMib(106);
+    QString str = codec->toUnicode(data);
+    QTextStream out(stdout);
+    out << "fetch out" << str;
+    */
 
     int titlestart=data.indexOf("<title>")+7;
     int titleend=data.indexOf("</title>");
@@ -240,7 +253,7 @@ void MainWindow::replyFinished(QNetworkReply *pReply){
 
     //get webpage html title
     if(data.contains("<title>")){
-        tabControl->setTabText(0,qpagetitle);
+        tabControl->setTabText(tabControl->currentIndex(),qpagetitle);
     }
 }
 
@@ -251,12 +264,28 @@ void MainWindow::fetchUrl(std::string urlstr){
 
 }
 
+void MainWindow::updateUrlBar()
+{
+    int index = tabControl->currentIndex();
+    std::cout << "Index change to " << index  <<"\n";
+    
+    QTextStream out(stdout);
+    out << "Url is " << views[index]->url().toString() << "\n";
+   
+    if (views[index]->url().toString() != ""){
+        lineEdit1->setText(views[index]->url().toString());
+
+    }
+
+
+}
+
 void MainWindow::updateUrl()
 {
 //    QTextStream out(stdout);
 //    out << "I am here";
-    lineEdit1->setText(view->url().toString());
-    urlExists(view->url());
+    lineEdit1->setText(views[tabControl->currentIndex()]->url().toString());
+    urlExists(views[tabControl->currentIndex()]->url());
 
 }
 
@@ -375,7 +404,8 @@ void MainWindow::launchURL()
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
    if (urlExists(url)){
-       view->load(url);}
+       std::cout<< "Current index is " << tabControl->currentIndex() << "\n";
+       views[tabControl->currentIndex()]->load(url);}
        //view->setUrl(url);}
    else{
        qDebug() << QString("Invalid URL: %1").arg(url.toString());
