@@ -66,7 +66,11 @@ class MainWindow : public QMainWindow
         int storeWidth; //fix window size at mouseclick for resizing
         int storeHeight;
         bool resizeLock; //if resizeLock (left mouse press within resize zone) then resize anywhere
-       
+        int adjXfac_lock;
+        int adjYfac_lock;
+        int transXfac_lock;
+        int transYfac_lock;
+
         //Resize method
         bool inResizeZone(QPoint rs_mpos);
 

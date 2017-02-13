@@ -589,9 +589,11 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         int adjYfac=0;
         int transXfac=0;
         int transYfac=0;
-
-        //Upper left corner section
-        if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
+        
+        if (!resizeLock){
+        
+            //Upper left corner section
+            if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
             this->setCursor(Qt::SizeFDiagCursor);
     
             
@@ -603,59 +605,66 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
                transYfac=0;
 
 
-        }
-        //Upper right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
-    
-    
-            //upper right. Flip displacements in mouse movement across x axis
-            //and translate window left toward the mouse
-            adjXfac=-1;
-            adjYfac=1;
+            }
+            //Upper right corner section
+            else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size){
+                this->setCursor(Qt::SizeBDiagCursor);
+        
+        
+                //upper right. Flip displacements in mouse movement across x axis
+                //and translate window left toward the mouse
+                adjXfac=-1;
+                adjYfac=1;
 
-            transXfac = 1;
-            transYfac =0;    
+                transXfac = 1;
+                transYfac =0;    
 
 
-        }
-        //Lower left corner section
-        else if(abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
+            }
+            //Lower left corner section
+            else if(abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size){
+                this->setCursor(Qt::SizeBDiagCursor);
+                    
+                //lower left. Flip displacements in mouse movement across y axis
+                //and translate window up toward mouse
+                adjXfac=1;
+                adjYfac=-1;
+
+                transXfac=0;
+                transYfac=1;
                 
-            //lower left. Flip displacements in mouse movement across y axis
-            //and translate window up toward mouse
-            adjXfac=1;
-            adjYfac=-1;
 
-            transXfac=0;
-            transYfac=1;
-            
+            }   
+            //Lower right corner section
+            else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size){
+                this->setCursor(Qt::SizeFDiagCursor);
+                
+                //lower right. Flip mouse displacements on both axis and
+                //translate in both x and y direction left and up toward mouse.
+                adjXfac=-1;
+                adjYfac=-1;
 
-        }   
-        //Lower right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeFDiagCursor);
-            
-            //lower right. Flip mouse displacements on both axis and
-            //translate in both x and y direction left and up toward mouse.
-            adjXfac=-1;
-            adjYfac=-1;
+                transXfac=1;
+                transYfac=1;
+            }
+            //in any move event if it is not in a resize region use the default cursor
+            else{
+        
+                this->setCursor(Qt::ArrowCursor);
+            }
 
-            transXfac=1;
-            transYfac=1;
-        }
-    //in any move event if it is not in a resize region use the default cursor
-    //Move window
-    else{
-    
-        this->setCursor(Qt::ArrowCursor);
-    }
+       }
 
     if (inResizeZone(rs_mpos) && 
-        event->buttons()==Qt::LeftButton){
+        event->buttons()==Qt::LeftButton &&
+        resizeLock==false){
         
         resizeLock=true;
+        adjXfac_lock=adjXfac;
+        adjYfac_lock=adjYfac;
+
+        transXfac_lock=transXfac;
+        transYfac_lock=transYfac;
 
     }
     
@@ -667,14 +676,14 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         if (event->buttons()==Qt::LeftButton){
               
            
-           //Calculation of displacement. adjXfac=1 means normal displacement
-           //adjXfac=-1 means flip over axis     
-           int adjXdiff = adjXfac*(event->globalPos().x() - global_mpos.x());
+           //Calculation of displacement. adjXfac_lock=1 means normal displacement
+           //adjXfac_lock=-1 means flip over axis     
+           int adjXdiff = adjXfac_lock*(event->globalPos().x() - global_mpos.x());
                 
-           int adjYdiff = adjYfac*(event->globalPos().y() - global_mpos.y());
+           int adjYdiff = adjYfac_lock*(event->globalPos().y() - global_mpos.y());
            
-           //if transfac is 1 then movepoint of mouse is translated     
-           QPoint movePoint(mpos.x() - transXfac*adjXdiff, mpos.y()-transYfac*adjYdiff);
+           //if transfac_lock is 1 then movepoint of mouse is translated     
+           QPoint movePoint(mpos.x() - transXfac_lock*adjXdiff, mpos.y()-transYfac_lock*adjYdiff);
             
             if (storeWidth-adjXdiff>min_size && storeHeight-adjYdiff>min_size){
                 move(event->globalPos()-movePoint);
