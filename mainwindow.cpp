@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     //Freed in destructor    
     views=(QWebView**)malloc(sizeof(QWebView*)*maxTabs);
+    viewsClose=(QToolButton**)malloc(sizeof(QToolButton*)*maxTabs);
 
     //Main window
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
@@ -100,6 +101,9 @@ MainWindow::MainWindow(QWidget *parent)
     
     tabControl->addTab(view,QString::fromStdString(" "));
     tabAmount++;
+    viewsClose[0] = new QToolButton(this);
+    viewsClose[0]->setText("x");
+    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,viewsClose[0]);
     //view->resize(1000,520);
     //view->move(0,50);
     view->setMouseTracking(true);
@@ -203,7 +207,7 @@ MainWindow::~MainWindow(){
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event){
     resizeLock=false;
-
+    event->accept();
 }
 
 void MainWindow::incTab(){
@@ -219,6 +223,12 @@ void MainWindow::incTab(){
     views[index]->setStyleSheet("background:transparent");
     views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
     views[index]->load(QUrl("http://www.google.com"));
+    viewsClose[index] = new QToolButton(this);
+    viewsClose[index]->setText("x");
+
+    //This "tabAmount-1" is the last tab on the tabbar, different from index since
+    //tabAmount has been incremented above
+    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,viewsClose[index]);
     
     //views[index]->page()->setNetworkAccessManager(m_manager);
     //views[index]->show();

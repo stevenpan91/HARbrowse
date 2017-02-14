@@ -80,6 +80,7 @@ class MainWindow : public QMainWindow
         //General controls
         //std::vector<QWebView> views;
         QWebView **views;
+        QToolButton **viewsClose;
         QWebView *view;
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;
