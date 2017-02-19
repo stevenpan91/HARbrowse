@@ -31,7 +31,7 @@ class MainWindow : public QMainWindow
         //related to browsing internet 
         void launchURL();
         void updateUrl();
-        void updateUrlBar();
+        void updateUrlBar(int index);
         void replyFinished(QNetworkReply *pReply);
 
         //timer
@@ -39,6 +39,13 @@ class MainWindow : public QMainWindow
 
         //increment tab
         void incTab();
+
+        //close tab
+        void closeMyTab(int index);
+        
+        //rearrange indices when tab moves
+        void tabIndexRearrange(int from, int to);
+
     protected:  
         //Mouse
         void mousePressEvent(QMouseEvent *event) override;
@@ -78,9 +85,6 @@ class MainWindow : public QMainWindow
         std::string pageTitle; //Get webpage html title
         
         //General controls
-        //std::vector<QWebView> views;
-        QWebView **views;
-        QToolButton **viewsClose;
         QWebView *view;
         QLineEdit *lineEdit1;
         QPushButton *urlLaunch;
@@ -90,11 +94,23 @@ class MainWindow : public QMainWindow
         QTabWidget *tabControl;
         QFrame *frame;
         QNetworkAccessManager *m_manager; 
-        QNetworkCookieJar *cookieJar;
         QLabel *timeLabel;
 
+        QSignalMapper *signalMapper;
+        
+        //Structure of tab related things
+        struct Tabs{
+            QWebView *webView;
+            QToolButton *webViewClose;
+            int index;
+            bool initialized;
+        };
+
+        Tabs **tabs;
         //methods
         void fetchUrl(std::string urlstr);
         bool urlExists(QUrl theurl);
+    signals:
+        void clicked(int index);
 };
 

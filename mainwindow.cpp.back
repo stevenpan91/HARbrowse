@@ -40,8 +40,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, SIGNAL(clicked(int)));
     
     //Freed in destructor    
-    tabs = new Tabs*[maxTabs];
-
+    views=(QWebView**)malloc(sizeof(QWebView*)*maxTabs);
+    viewsClose=(QToolButton**)malloc(sizeof(QToolButton*)*maxTabs);
 
     //Main window
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
@@ -73,8 +73,13 @@ MainWindow::MainWindow(QWidget *parent)
     timeLabel->move(930,570);
     timeLabel->show(); 
 
-    //Needed to get webpage title
+
     m_manager=new QNetworkAccessManager(this);
+    
+    //allow cookies for youtube
+    //cookieJar=new QNetworkCookieJar();
+    //m_manager->setCookieJar(cookieJar);
+
     connect(m_manager,SIGNAL(finished(QNetworkReply*)),
             this, SLOT(replyFinished(QNetworkReply*)));
     
@@ -82,36 +87,35 @@ MainWindow::MainWindow(QWidget *parent)
 
     //Tab Page section
     tabControl = new QTabWidget(this);
-    tabControl->setMovable(true);
     tabControl->setMouseTracking(true);
     tabControl->resize(1000,520);
     tabControl->move(0,50);
     tabControl->setAttribute(Qt::WA_TranslucentBackground,true);
     //tabControl->setStyleSheet("background:transparent");
     
-    connect(tabControl,SIGNAL(currentChanged(int)),this, SLOT(updateUrlBar(int)));
-    connect(tabControl->tabBar(),SIGNAL(tabMoved(int,int)),
-            this,SLOT(tabIndexRearrange(int,int)));
+    connect(tabControl,SIGNAL(currentChanged(int)),this, SLOT(updateUrlBar()));
 
 
     //Webview
+    //view = new QWebView(this);
     view=new QWebView(tabControl);
 
-    QTextStream out(stdout);
     //backwards compatability to not have to redo all the code that says "view"
-    tabs[0]=new Tabs();
-    tabs[0]->webView=view;
+    views[0]=view;
     
     tabControl->addTab(view,QString::fromStdString(" "));
-    tabs[0]->initialized=true;
     tabAmount++;
     
     //tabControl->setTabsClosable(true);
-    tabs[0]->webViewClose = new QToolButton(this);
-    tabs[0]->webViewClose->setText("x");
-    connect(tabs[0]->webViewClose,SIGNAL(clicked()),signalMapper,SLOT(map()));
-    signalMapper->setMapping(tabs[0]->webViewClose,0);
-    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,tabs[0]->webViewClose);
+    viewsClose[0] = new QToolButton(this);
+    viewsClose[0]->setText("x");
+    connect(viewsClose[0],SIGNAL(clicked()),signalMapper,SLOT(map()));
+    signalMapper->setMapping(viewsClose[0],0);
+    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,viewsClose[0]);
+    //view->resize(1000,520);
+    //view->move(0,50);
+    
+    //connect(tabControl,SIGNAL(tabCloseRequested(int)),this,SLOT(closeMyTab(int)));
 
     view->setMouseTracking(true);
     view->setStyleSheet("background:transparent");
@@ -120,10 +124,11 @@ MainWindow::MainWindow(QWidget *parent)
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled,true);    
     QWebSettings::globalSettings()->setAttribute(QWebSettings::AutoLoadImages,true);    
     view->load(QUrl("http://www.google.com"));
+    //view->page()->settings()->clearMemoryCaches();
+    //view->reload();
 
 
-    //Add tab button. The tab itself is disabled so that the user will not
-    //focus on it when clicking
+
     QToolButton *tb = new QToolButton(this);
     tb->setText("+");
     tabControl->addTab(new QLabel("Add tabs by pressing +"),QString());
@@ -134,6 +139,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this, SIGNAL(clicked(int)), this, SLOT(closeMyTab(int)));
 
+    //view->setEnabled(true); 
+    //view->page()->setNetworkAccessManager(m_manager);
     
     connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
 
@@ -209,7 +216,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow(){
-    delete tabs;
+    free(views);
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event){
@@ -217,6 +224,16 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event){
     event->accept();
 }
 
+void MainWindow::closeTab(){
+    
+    QTextStream out(stdout);
+    out<<"Here";
+    out<<tabControl->tabBar()->currentIndex();
+    
+    //tabControl->removeTab(0);
+    //tabAmount--;
+
+}
 
 void MainWindow::closeMyTab(int index){
 
@@ -224,97 +241,46 @@ void MainWindow::closeMyTab(int index){
    QTextStream out(stdout);
 
    out << sender();
+
    tabAmount--;
-   
-   //tabAmount-1 accounts for the add tab tab
-   for (int dec=index; dec<tabAmount-1; dec++){
-        tabs[dec]=tabs[dec+1];
-        out<< "Decrement " << dec+1 << "To " << dec << "\n";
-
-   }
-
-
 }
 
-void MainWindow::tabIndexRearrange(int from, int to){
-    
-    Tabs *tempFromTab=new Tabs();
-    Tabs *tempToTab = new Tabs();
-
-    //moving inc tab tab shouldn't trigger below
-    if (to != tabAmount-1){
-        memcpy(tempFromTab, tabs[from], sizeof(Tabs));
-        memcpy(tempToTab, tabs[to], sizeof(Tabs));
-        //tempTab = tabs[from];
-        memcpy(tabs[to],tempFromTab,sizeof(Tabs));
-
-        //tabs[to]=tabs[from];
-        memcpy(tabs[from],tempToTab,sizeof(Tabs));
-
-        delete tempFromTab;
-        delete tempToTab;
-    }
-    
-}
 
 void MainWindow::incTab(){
     //account add tab button
     int index=tabAmount-1;
 
-
     if (tabAmount<=maxTabs){
     
-    
-    QTextStream out(stdout);
-    
-    //add tab to tabControl
-    //if (!tabs[index]->initialized){
-        out<<"Reached";
-        tabs[index]=new Tabs();
-        tabs[index]->webView=new QWebView(tabControl);
-    //    tabs[index]->initialized=true;
-    //}
-
-    tabControl->addTab(tabs[index]->webView,QString::fromStdString(" "));
+    views[index]=new QWebView(tabControl);
+    tabControl->addTab(views[index],QString::fromStdString(" "));
     tabAmount++;
-    
-    //move the add tab button over 1
-    //tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
-    
-    //focus on new tab
-    //tabControl->setCurrentIndex(index);
-    ///*
-    //tab settings
-    tabs[index]->webView->setMouseTracking(true);
-    tabs[index]->webView->setStyleSheet("background:transparent");
-    tabs[index]->webView->setAttribute(Qt::WA_TranslucentBackground,true);
-    tabs[index]->webView->load(QUrl("http://www.google.com"));
-    
-   
-    //button to close the tab
-    tabs[index]->webViewClose = new QToolButton(this);
-    tabs[index]->webViewClose->setText("x");
-    
-    
-    //Map the index number to the index of the Tabs struct
-    //so that the right tab can be closed when its button its
-    connect(tabs[index]->webViewClose,SIGNAL(clicked()),
+    views[index]->setMouseTracking(true);
+    views[index]->setStyleSheet("background:transparent");
+    views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
+    views[index]->load(QUrl("http://www.google.com"));
+    viewsClose[index] = new QToolButton(this);
+    viewsClose[index]->setText("x");
+
+    //connect(viewsClose[index],SIGNAL(clicked()),this,SLOT(closeTab()));
+    connect(viewsClose[index],SIGNAL(clicked()),
             signalMapper,SLOT (map()));
-    signalMapper->setMapping(tabs[index]->webViewClose,index);
+            signalMapper->setMapping(viewsClose[index],index);
 
                
 
     //This "tabAmount-1" is the last tab on the tabbar, different from index since
     //tabAmount has been incremented above
-    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,tabs[index]->webViewClose);
+    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,viewsClose[index]);
     
-    connect(tabs[index]->webView,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+    //views[index]->page()->setNetworkAccessManager(m_manager);
+    //views[index]->show();
+    connect(views[index],SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
     //move the add tab button over 1
     tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
     
     //focus on new tab
-    tabControl->setCurrentIndex(index);
-    //*/
+    tabControl->setCurrentIndex(index); 
     }
     
 }
@@ -358,21 +324,24 @@ void MainWindow::fetchUrl(std::string urlstr){
 
 }
 
-void MainWindow::updateUrlBar(int index)
+void MainWindow::updateUrlBar()
 {
-
-    if (tabs[index]->webView->url().toString() != ""){
-        lineEdit1->setText(tabs[index]->webView->url().toString());
+    int index=tabControl->currentIndex();
+   
+    if (views[index]->url().toString() != ""){
+        lineEdit1->setText(views[index]->url().toString());
 
     }
+
 
 }
 
 void MainWindow::updateUrl()
 {
-    
-    lineEdit1->setText(tabs[tabControl->currentIndex()]->webView->url().toString());
-    urlExists(tabs[tabControl->currentIndex()]->webView->url());
+//    QTextStream out(stdout);
+//    out << "I am here";
+    lineEdit1->setText(views[tabControl->currentIndex()]->url().toString());
+    urlExists(views[tabControl->currentIndex()]->url());
 
 }
 
@@ -459,6 +428,25 @@ bool MainWindow::urlExists(QUrl theurl){
 void MainWindow::launchURL()
 {
   std::string urlstring = lineEdit1->text().toStdString();
+   /*if (urlstring.substr(0,11)!="http://www."){
+       //initialize manipulated string
+       std::string editstr;
+       //if there is an http but no www. then
+       if(urlstring.substr(0,7)=="http://"){
+            editstr="http://www."+urlstring.substr(7,urlstring.length()-7);
+       
+       }
+       //If there is www. but no http
+       else if(urlstring.substr(0,4)=="www."){
+            editstr="http://"+urlstring;
+       
+       }
+       else{ 
+            editstr="http://www."+lineEdit1->text().toStdString();
+       }
+       QString qeditstr = QString::fromStdString(editstr);
+       lineEdit1->setText(qeditstr); 
+   }*/
 
    if (urlstring.substr(0,7)!="http://" && urlstring.substr(0,8)!="https://"){
        std::string editstr;
@@ -472,12 +460,9 @@ void MainWindow::launchURL()
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
    if (urlExists(url)){
-       //QTextStream out(stdout);
-       
-       tabs[tabControl->currentIndex()]->webView->load(url);
-       //out << "Index being loaded is: " << tabControl->currentIndex();
-       
-       }
+       std::cout<< "Current index is " << tabControl->currentIndex() << "\n";
+       views[tabControl->currentIndex()]->load(url);}
+       //view->setUrl(url);}
    else{
        qDebug() << QString("Invalid URL: %1").arg(url.toString());
        displayErrorHTML();    
