@@ -30,8 +30,6 @@
 MainWindow::MainWindow(QWidget *parent) 
     : QMainWindow(parent)
 {
-    tabAmount=0;
-    maxTabs=10;
     resizeLock=false;
 
 
@@ -39,8 +37,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(signalMapper, SIGNAL(mapped(int)),
             this, SIGNAL(clicked(int)));
     
-    //Freed in destructor    
-    tabs = new Tabs*[maxTabs];
 
 
     //Main window
@@ -99,19 +95,28 @@ MainWindow::MainWindow(QWidget *parent)
 
     QTextStream out(stdout);
     //backwards compatability to not have to redo all the code that says "view"
-    tabs[0]=new Tabs();
-    tabs[0]->webView=view;
+    Tabs* firstTab=new Tabs();
+    firstTab->webView=view;
     
+    
+    tabList = new TabList();
+    tabList->tabsHead=firstTab;
+
+    Tabs* firstHeadTab = tabList->getHeadTab();
+    firstHeadTab->index=0;
+    firstHeadTab->setNext(NULL);
+    firstHeadTab->setPrev(NULL);
+
+
     tabControl->addTab(view,QString::fromStdString(" "));
-    tabs[0]->initialized=true;
-    tabAmount++;
+    firstHeadTab->initialized=true;
     
     //tabControl->setTabsClosable(true);
-    tabs[0]->webViewClose = new QToolButton(this);
-    tabs[0]->webViewClose->setText("x");
-    connect(tabs[0]->webViewClose,SIGNAL(clicked()),signalMapper,SLOT(map()));
-    signalMapper->setMapping(tabs[0]->webViewClose,0);
-    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,tabs[0]->webViewClose);
+    firstHeadTab->webViewClose = new QToolButton(this);
+    firstHeadTab->webViewClose->setText("x");
+    connect(firstHeadTab->webViewClose,SIGNAL(clicked()),signalMapper,SLOT(map()));
+    signalMapper->setMapping(firstHeadTab->webViewClose,0);
+    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,firstHeadTab->webViewClose);
 
     view->setMouseTracking(true);
     view->setStyleSheet("background:transparent");
@@ -127,15 +132,34 @@ MainWindow::MainWindow(QWidget *parent)
     QToolButton *tb = new QToolButton(this);
     tb->setText("+");
     tabControl->addTab(new QLabel("Add tabs by pressing +"),QString());
-    tabAmount++;
     tabControl->setTabEnabled(1,false);
     tabControl->tabBar()->setTabButton(1,QTabBar::RightSide,tb);
     connect(tb,SIGNAL(clicked()),this,SLOT(incTab()));
 
+    //Click to close
     connect(this, SIGNAL(clicked(int)), this, SLOT(closeMyTab(int)));
 
     
     connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+
+    //Back and forward buttons
+    //QIcon backIcon= style->standardIcon(QStyle::SP_ArrowBack);
+    webBack=new QPushButton(this);
+    //webBack->setIcon(backIcon);
+    webBack->setText("<<");
+    webBack->resize(20,20);
+    webBack->move(15,20);
+    webBack->setAutoDefault(false);
+    webBack->setDefault(false);
+    connect(webBack,SIGNAL(clicked()),this,SLOT(webViewBack()));
+
+    webForward=new QPushButton(this);
+    webForward->setText(">>");
+    webForward->resize(20,20);
+    webForward->move(40,20); 
+    webForward->setAutoDefault(false);
+    webForward->setDefault(false);
+    connect(webForward,SIGNAL(clicked()),this,SLOT(webViewForward()));
 
     //Quit button section
     QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
@@ -179,15 +203,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     //URL section
     lineEdit1 = new QLineEdit(this);
-    lineEdit1->resize(800,20);
-    lineEdit1->move(20,20);
+    lineEdit1->resize(740,20);
+    lineEdit1->move(60,20);
     lineEdit1->setStyleSheet(".QLineEdit{border-radius: 10px;}");
 
     //Launch URL section
     urlLaunch = new QPushButton(this);
     urlLaunch->setText("Launch");
     urlLaunch->resize(70,20);
-    urlLaunch->move(820,20);
+    urlLaunch->move(800,20);
     urlLaunch->setShortcut(QKeySequence(Qt::Key_Enter));
     urlLaunch->setDefault(true);
     urlLaunch->setAutoDefault(true);
@@ -195,13 +219,14 @@ MainWindow::MainWindow(QWidget *parent)
     urlLaunch->setStyleSheet(".QPushButton{border: 0.5px solid black; border-radius: 5px;}");
     connect(urlLaunch,SIGNAL(clicked()),this,SLOT(launchURL()));
 
-    
+     
     
     lineEdit1->show();
     urlLaunch->show();
     quit->show();
     view->show();
-    
+    webBack->show();
+    webForward->show();    
     frame->show();
     
     
@@ -209,7 +234,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow(){
-    delete tabs;
+    delete tabList;
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event){
@@ -220,102 +245,298 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event){
 
 void MainWindow::closeMyTab(int index){
 
-   tabControl->removeTab(index);
    QTextStream out(stdout);
+   out<< "Index being closed is " << index;
+   Tabs *tmp = tabList->getTab(index);
 
-   out << sender();
-   tabAmount--;
-   
-   //tabAmount-1 accounts for the add tab tab
-   for (int dec=index; dec<tabAmount-1; dec++){
-        tabs[dec]=tabs[dec+1];
-        out<< "Decrement " << dec+1 << "To " << dec << "\n";
+   if (tmp==NULL){
+       return;
 
    }
+   tabControl->removeTab(index);
+   
+   if (tmp->getPrev()==NULL && tmp->getNext()==NULL){
+       //It's the head node 
+       delete tmp;
+       tabList->setHead(NULL);
+       return;
+   }
+    
 
+   //Set next of previous node to next of current
+   Tabs* prevNode=tmp->getPrev();
+   Tabs* nextNode=tmp->getNext();
+   
+   if (nextNode==NULL){
+       //It's the end tab, delete it and set prevNode next to NULL
+       prevNode->setNext(NULL);
+       delete tmp;
+       return;
+   }
+   
+   //What do we do about head node where prev is Null?
+   if (prevNode==NULL){
+         //If prev is NULL then we're deleting the head tab but there are other nodes
+         //attached so set head of list to next of tab being deleted
+         tabList->setHead(nextNode);
+         nextNode->setPrev(NULL);
+   }
+   else{
+   
+        prevNode->setNext(nextNode);
+        nextNode->setPrev(prevNode);
+
+   }
+   delete tmp;
+
+   //update indices
+   while (nextNode!=NULL){
+        nextNode->index=nextNode->index-1;
+        signalMapper->setMapping(nextNode->webViewClose,nextNode->index);
+        nextNode=nextNode->getNext();
+   }
+
+   //update current url bar
+   updateUrlBar(tabControl->currentIndex());
+
+   out << "\nStart connection check" << endl;
+   for(int i=0; i<=tabList->getLastTabIndex();i++){
+        Tabs* theTab=tabList->getTab(i);
+        out << "Tab " << theTab->index << " is connected to: " << endl;
+        
+        if (theTab->getPrev() != NULL) {
+            out << "\t"<<theTab->getPrev()->index << " back" << endl;
+        }
+        else{
+            out << "\t"<<"Null back"<<endl;
+        }
+        
+        if (theTab->getNext() != NULL) {
+            out << "\t"<<theTab->getNext()->index << " forward" << endl;
+        }
+        else{
+            out << "\t"<<"Null forward"<<endl;
+        }
+
+   }
 
 }
 
 void MainWindow::tabIndexRearrange(int from, int to){
     
-    Tabs *tempFromTab=new Tabs();
-    Tabs *tempToTab = new Tabs();
+    QTextStream out(stdout);
+    
+    int lastTabIndex = tabList->getLastTabIndex();
+    
+    //For the add tab tab nothing should be done here
+    if (from > lastTabIndex or to >lastTabIndex){
+        return;
+    }
 
-    //moving inc tab tab shouldn't trigger below
-    if (to != tabAmount-1){
-        memcpy(tempFromTab, tabs[from], sizeof(Tabs));
-        memcpy(tempToTab, tabs[to], sizeof(Tabs));
-        //tempTab = tabs[from];
-        memcpy(tabs[to],tempFromTab,sizeof(Tabs));
+    Tabs* fromTab;
+    Tabs* fromNext;
+    Tabs* fromPrev;
 
-        //tabs[to]=tabs[from];
-        memcpy(tabs[from],tempToTab,sizeof(Tabs));
+    Tabs* toTab;
+    Tabs* toNext;
+    Tabs* toPrev;
+    
+    fromTab = tabList->getTab(from);
+    fromNext = fromTab->getNext();
+    fromPrev = fromTab->getPrev();
+    
+    toTab=tabList->getTab(to);
+    toNext= toTab->getNext();
+    toPrev= toTab->getPrev();
 
-        delete tempFromTab;
-        delete tempToTab;
+    fromTab->setIndex(to);
+    toTab->setIndex(from);
+
+    //Right to left movement
+    if (from>to){
+        /*
+         Assuming ...Node1->Node2->Node3->Null
+         Where 3 goes to 2
+         Steps:
+            1. 3 next is what 2 is
+            2. 3 prev is what 2's prev was
+            3. 2 prev is what 3 is
+            4. 2 next is what 3's next was
+            5. 1 next is 3
+
+        */
+        fromTab->setNext(toTab);
+        fromTab->setPrev(toPrev);
+
+        toTab->setPrev(fromTab);
+        toTab->setNext(fromNext);
+
+        toPrev->setNext(fromTab);
     }
     
+    //left to right movement
+    if (from<to){
+        /*
+         Assuming ...Node1->Node2->Node3->Null
+         Where 2 goes to 3
+         Steps:
+            1. 2 prev is what 3 is
+            2. 2 next is what 3's next was
+            3. 3 next is what 2 is
+            4. 3 prev is what 2's prev was
+            5. 1 next is 3
+
+        */
+        fromTab->setPrev(toTab);
+        fromTab->setNext(toNext);
+
+        toTab->setNext(fromTab);
+        toTab->setPrev(fromPrev);
+
+        fromPrev->setNext(toTab);
+    }
+    
+   out << "\nStart rearrange check" << endl;
+   for(int i=0; i<=tabList->getLastTabIndex();i++){
+        Tabs* theTab=tabList->getTab(i);
+        if (theTab !=NULL){
+            out << "Tab " << theTab->index << " is connected to: " << endl;
+            
+            if (theTab->getPrev() != NULL) {
+                out << "\t"<<theTab->getPrev()->index << " back" << endl;
+            }
+            else{
+                out << "\t"<<"Null back"<<endl;
+            }
+            
+            if (theTab->getNext() != NULL) {
+                out << "\t"<<theTab->getNext()->index << " forward" << endl;
+            }
+            else{
+                out << "\t"<<"Null forward"<<endl;
+            }
+        }
+        else{
+            out<< "Tab "<< i << " is Null."<<endl;
+        }
+
+   }
 }
 
-void MainWindow::incTab(){
-    //account add tab button
-    int index=tabAmount-1;
 
+int MainWindow::TabList::getLastTabIndex(){
+    Tabs *temp=getHeadTab();    
+    int lastIndex=-1;
+    while (temp != NULL){
+        temp=temp->getNext();
+        lastIndex++;
+    }  
 
-    if (tabAmount<=maxTabs){
+    return lastIndex;
+
+}
+
+MainWindow::Tabs* MainWindow::TabList::getTab(int findIndex){
+    Tabs *temp;//=new Tabs();
+    temp=tabsHead;
+    bool notfound=true;
+     
+    QTextStream out(stdout);
+    if (temp != NULL){
+        while (notfound && temp != NULL){
+            if (temp->index == findIndex){
+
+                notfound=false;
+
+            }
+            else{
+                temp=temp->getNext();
+            }
+
+        }
+    }
+
+    return temp;
+}
+
+MainWindow::Tabs* MainWindow::TabList::getLastTab(){
     
+    if (getLastTabIndex()>=0){
+        return getTab(getLastTabIndex());
+    }
+
+    return NULL;
+
+}
+
+
+void MainWindow::incTab(){
+
     
     QTextStream out(stdout);
     
-    //add tab to tabControl
-    //if (!tabs[index]->initialized){
-        out<<"Reached";
-        tabs[index]=new Tabs();
-        tabs[index]->webView=new QWebView(tabControl);
-    //    tabs[index]->initialized=true;
-    //}
+    int lastIndex = tabList->getLastTabIndex();
 
-    tabControl->addTab(tabs[index]->webView,QString::fromStdString(" "));
-    tabAmount++;
+    Tabs* lastTab = tabList->getLastTab();
+
+    //make new tab, give it the last tab's index + 1
+    //set the new tab's next tab to NULL since it will be
+    //appended to the end of the tab list
+    //New tab's prevTab will be the lasttab on the current list    
+    Tabs* newTab = new Tabs();
+    newTab->setIndex(lastIndex+1);
+    newTab->webView=new QWebView(tabControl);
+    newTab->setNext(NULL);
+    newTab->setPrev(lastTab);
+
+    //Link last tab on tab list to new tab if it isn't head tab
+    if (lastTab!=NULL){
+        lastTab->setNext(newTab);
+    }
+    else {
+        tabList->setHead(newTab);
+    }
+
     
-    //move the add tab button over 1
-    //tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    //From here the last tab has chaned
+    Tabs* newLastTab = tabList->getLastTab();
+    int newLastTabIndex=tabList->getLastTabIndex();
+
+    tabControl->addTab(newLastTab->webView,QString::fromStdString(" "));
     
-    //focus on new tab
-    //tabControl->setCurrentIndex(index);
-    ///*
+    //move the add tab button over 1 because the new tab was actually added to the end
+    //and the add tab tab counts as a tab (add tab is at newLastTabIndex before below
+    //statement executed)
+    tabControl->tabBar()->moveTab(newLastTabIndex,newLastTabIndex+1);
+    
+    
     //tab settings
-    tabs[index]->webView->setMouseTracking(true);
-    tabs[index]->webView->setStyleSheet("background:transparent");
-    tabs[index]->webView->setAttribute(Qt::WA_TranslucentBackground,true);
-    tabs[index]->webView->load(QUrl("http://www.google.com"));
     
+    newLastTab->webView->setMouseTracking(true);
+    newLastTab->webView->setStyleSheet("background:transparent");
+    newLastTab->webView->setAttribute(Qt::WA_TranslucentBackground,true);
+    newLastTab->webView->load(QUrl("http://www.google.com"));
    
     //button to close the tab
-    tabs[index]->webViewClose = new QToolButton(this);
-    tabs[index]->webViewClose->setText("x");
-    
+
+    newLastTab->webViewClose=new QToolButton(this);
+    newLastTab->webViewClose->setText("x");
     
     //Map the index number to the index of the Tabs struct
     //so that the right tab can be closed when its button its
-    connect(tabs[index]->webViewClose,SIGNAL(clicked()),
-            signalMapper,SLOT (map()));
-    signalMapper->setMapping(tabs[index]->webViewClose,index);
-
-               
-
-    //This "tabAmount-1" is the last tab on the tabbar, different from index since
-    //tabAmount has been incremented above
-    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,tabs[index]->webViewClose);
     
-    connect(tabs[index]->webView,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
-    //move the add tab button over 1
-    tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    connect(newLastTab->webViewClose,SIGNAL(clicked()),
+            signalMapper,SLOT (map()));
+    signalMapper->setMapping(newLastTab->webViewClose,newLastTabIndex);
+
+    tabControl->tabBar()->setTabButton(newLastTabIndex,QTabBar::RightSide,newLastTab->webViewClose);
+    
+    //Connect url manipulation of new tab's webview
+    connect(newLastTab->webView,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+    
     
     //focus on new tab
-    tabControl->setCurrentIndex(index);
-    //*/
-    }
+    tabControl->setCurrentIndex(newLastTabIndex);
     
 }
 
@@ -360,22 +581,34 @@ void MainWindow::fetchUrl(std::string urlstr){
 
 void MainWindow::updateUrlBar(int index)
 {
+    QTextStream out(stdout);
 
-    if (tabs[index]->webView->url().toString() != ""){
-        lineEdit1->setText(tabs[index]->webView->url().toString());
+    if (tabList->getTab(index)->webView->url().toString() != ""){
+        lineEdit1->setText(tabList->getTab(index)->webView->url().toString());
 
     }
-
 }
 
 void MainWindow::updateUrl()
 {
     
-    lineEdit1->setText(tabs[tabControl->currentIndex()]->webView->url().toString());
-    urlExists(tabs[tabControl->currentIndex()]->webView->url());
+    lineEdit1->setText(tabList->getTab(tabControl->currentIndex())->webView->url().toString());
+    urlExists(tabList->getTab(tabControl->currentIndex())->webView->url());
 
 }
 
+void MainWindow::webViewBack(){
+
+    int index=tabControl->currentIndex();
+    tabList->getTab(index)->webView->back();
+}
+
+void MainWindow::webViewForward(){
+    int index=tabControl->currentIndex();
+    tabList->getTab(index)->webView->forward();
+    
+
+}
 
 void MainWindow::WinMinimize()
 {
@@ -417,7 +650,7 @@ bool MainWindow::urlExists(QUrl theurl){
                     while(packetSize>0)
                     {
                         //Output server response for debugging
-                        out << "[" << buffer.data() << "]"; //<<endl;
+                        //out << "[" << buffer.data() << "]"; //<<endl;
                         
                        /* int titlestart=buffer.indexOf("<title>")+7;
                         int titleend=buffer.indexOf("</title>");
@@ -474,8 +707,7 @@ void MainWindow::launchURL()
    if (urlExists(url)){
        //QTextStream out(stdout);
        
-       tabs[tabControl->currentIndex()]->webView->load(url);
-       //out << "Index being loaded is: " << tabControl->currentIndex();
+       tabList->getTab(tabControl->currentIndex())->webView->load(url);
        
        }
    else{
@@ -547,7 +779,7 @@ void MainWindow::resizeEvent(QResizeEvent *event){
    tabControl->resize(nwidth,nheight-80);
 
    //Resize url bar with window
-   lineEdit1->resize(nwidth-200,20);
+   lineEdit1->resize(nwidth-240,20);
 
    //Move all buttons so they're in the right spot
    urlLaunch->move(nwidth-180,20);
@@ -662,10 +894,10 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         
             //Upper left corner section
             if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
-            this->setCursor(Qt::SizeFDiagCursor);
+                this->setCursor(Qt::SizeFDiagCursor);
     
             
-            //Upper left. No flipping of axis, no translating window
+                //Upper left. No flipping of axis, no translating window
                adjXfac=1;
                adjYfac=1;
                 
@@ -737,6 +969,8 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
     }
     
     //if (inResizeZone(rs_mpos)){    
+    
+    //resize if resizeLock true
     if (resizeLock){    
         
        
@@ -777,181 +1011,3 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
 
 }
 
-/*
-void MainWindow::mouseMoveEvent(QMouseEvent *event){
-   
-
-    //mapped mouse relative to upper left of window
-    rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
-    QTextStream out(stdout);
-    //How much of the corner is considered a "resizing zone"
-    //I was experiencing jumping behavior with rs_size is 10 so
-    //I recommend rs_size=50
-    
-    //Modification Note: Resize zone of 50 is too large for cursor change.
-    //Added new method inResizeZone(rs_mpos) where the resize zone is still 50
-    //and a condition is added to window drag movement in this method.
-    //However in this method resize zone is 30 so that mouse cursor change occurs at 30x30
-    //but window drag movement is disabled at 50x50 to avoid jumping
-    int rs_size=50;
-    int min_size=100;
-   
-    //Big if statement checks if your mouse is in the upper left,
-    //upper right, lower left, and lower right 
-
-*/    
-    /*if (  //(this->width()>min_size && this->height()>min_size) && (
-         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size) ||
-         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size) || 
-         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size) ||
-         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size)
-        // ) 
-         ){
-    */
-/*
-    resizeLock=false;
-    if (inResizeZone(rs_mpos) && 
-        event->buttons()==Qt::LeftButton){
-        
-        resizeLock=true;
-
-    }
-    
-    //if (inResizeZone(rs_mpos)){    
-    if (resizeLock){    
-
-*/    
-        //Below for debugging
-        /*
-        out << rs_mpos.x() << " , " << rs_mpos.y() << "\n";
-        out << "window: " << this->width() << " , " << this->height() << "\n";
-        out << "globalpos: " << event->globalPos().x() << " , " 
-            << event->globalPos().y() << "\n";
-        */
-
-/*
-        //Use 2x2 matrix to adjust how much you are resizing and how much you
-        //are moving. Since the default coordinates are relative to upper left
-        //You cannot just have one way of resizing and moving the window.
-        //It will depend on which corner you are referring to
-
-        //adjXfac and adjYfac are for calculating the difference between your
-        //current mouse position and where your mouse was when you clicked.
-        //With respect to the upper left corner, moving your mouse to the right
-        //is an increase in coordinates, moving mouse to the bottom is increase
-        //etc.
-        //However, with other corners this is not so and since I chose to subtract
-        //This difference at the end for resizing, adjXfac and adjYfac should be
-        //1 or -1 depending on whether moving the mouse in the x or y directions
-        //increases or decreases the coordinates respectively. 
-
-        //transXfac transYfac is to move the window over. Resizing the window does not
-        //automatically pull the window back toward your mouse. This is what
-        //transfac is for (translate window in some direction). It will be either
-        //0 or 1 depending on whether you need to translate in that direction.
-
-        //Initiate matrix
-        int adjXfac=0;
-        int adjYfac=0;
-        int transXfac=0;
-        int transYfac=0;
-
-        //Upper left corner section
-        if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
-            this->setCursor(Qt::SizeFDiagCursor);
-    
-            
-            //Upper left. No flipping of axis, no translating window
-               adjXfac=1;
-               adjYfac=1;
-                
-               transXfac=0;
-               transYfac=0;
-
-
-        }
-        //Upper right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
-    
-    
-            //upper right. Flip displacements in mouse movement across x axis
-            //and translate window left toward the mouse
-            adjXfac=-1;
-            adjYfac=1;
-
-            transXfac = 1;
-            transYfac =0;    
-
-
-        }
-        //Lower left corner section
-        else if(abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
-                
-            //lower left. Flip displacements in mouse movement across y axis
-            //and translate window up toward mouse
-            adjXfac=1;
-            adjYfac=-1;
-
-            transXfac=0;
-            transYfac=1;
-            
-
-        }   
-        //Lower right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeFDiagCursor);
-            
-            //lower right. Flip mouse displacements on both axis and
-            //translate in both x and y direction left and up toward mouse.
-            adjXfac=-1;
-            adjYfac=-1;
-
-            transXfac=1;
-            transYfac=1;
-        }
-       
-
-        if (event->buttons()==Qt::LeftButton){
-              
-           
-           //Calculation of displacement. adjXfac=1 means normal displacement
-           //adjXfac=-1 means flip over axis     
-           int adjXdiff = adjXfac*(event->globalPos().x() - global_mpos.x());
-                
-           int adjYdiff = adjYfac*(event->globalPos().y() - global_mpos.y());
-           
-           //if transfac is 1 then movepoint of mouse is translated     
-           QPoint movePoint(mpos.x() - transXfac*adjXdiff, mpos.y()-transYfac*adjYdiff);
-            
-            if (storeWidth-adjXdiff>min_size && storeHeight-adjYdiff>min_size){
-                move(event->globalPos()-movePoint);
-           
-                resize(storeWidth-adjXdiff, storeHeight-adjYdiff);
-            }     
-                event->accept();
-                
-                
-        }
-
-    }
-
-
-    //in any move event if it is not in a resize region use the default cursor
-    //Move window
-    else{
-    
-        this->setCursor(Qt::ArrowCursor);
-        //simple move section
-        if (event->buttons()==Qt::LeftButton){
-            move(event->globalPos() - mpos);
-            event->accept();
-        }
-    }
-    
-
-    
-
-}
-*/

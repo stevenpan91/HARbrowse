@@ -33,6 +33,8 @@ class MainWindow : public QMainWindow
         void updateUrl();
         void updateUrlBar(int index);
         void replyFinished(QNetworkReply *pReply);
+        void webViewBack();
+        void webViewForward();
 
         //timer
         void showTime();
@@ -59,10 +61,6 @@ class MainWindow : public QMainWindow
         //Window state
         enum WindowState {Min, Max, Full};
         WindowState mainWinState;
-       
-        //Maximum number of tabs
-        int maxTabs;
-        int tabAmount;
 
         //Resizing parameters
         QPoint mpos; //For dragging, relative mouse position to upper left
@@ -83,7 +81,11 @@ class MainWindow : public QMainWindow
 
         //Misc 
         std::string pageTitle; //Get webpage html title
-        
+       
+        //webview back forward buttons
+        QPushButton *webBack;
+        QPushButton *webForward;
+
         //General controls
         QWebView *view;
         QLineEdit *lineEdit1;
@@ -95,21 +97,44 @@ class MainWindow : public QMainWindow
         QFrame *frame;
         QNetworkAccessManager *m_manager; 
         QLabel *timeLabel;
-
         QSignalMapper *signalMapper;
         
         //Structure of tab related things
         struct Tabs{
             QWebView *webView;
             QToolButton *webViewClose;
+            
+            Tabs* nextTab;
+            Tabs* prevTab;
+            Tabs* getNext(){return nextTab;}
+            Tabs* getPrev(){return prevTab;}
+            void setNext(Tabs* tab){nextTab=tab;}
+            void setPrev(Tabs* tab){prevTab=tab;}
+
             int index;
+            void setIndex(int setindex){index=setindex;}
+
             bool initialized;
         };
+        
+        
+        struct TabList{
+            Tabs *tabsHead;
+            void setHead(Tabs* tab){tabsHead=tab;}
 
-        Tabs **tabs;
+            Tabs *getTab(int findIndex);
+            Tabs *getHeadTab(){return tabsHead;}
+            Tabs *getLastTab();
+            int getLastTabIndex();
+
+        };
+
+        TabList *tabList;
+
         //methods
         void fetchUrl(std::string urlstr);
         bool urlExists(QUrl theurl);
+
     signals:
         void clicked(int index);
 };

@@ -19,8 +19,8 @@
 
 QT_BEGIN_MOC_NAMESPACE
 struct qt_meta_stringdata_MainWindow_t {
-    QByteArrayData data[25];
-    char stringdata0[251];
+    QByteArrayData data[27];
+    char stringdata0[278];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -48,12 +48,14 @@ QT_MOC_LITERAL(15, 149, 12), // "updateUrlBar"
 QT_MOC_LITERAL(16, 162, 13), // "replyFinished"
 QT_MOC_LITERAL(17, 176, 14), // "QNetworkReply*"
 QT_MOC_LITERAL(18, 191, 6), // "pReply"
-QT_MOC_LITERAL(19, 198, 8), // "showTime"
-QT_MOC_LITERAL(20, 207, 6), // "incTab"
-QT_MOC_LITERAL(21, 214, 10), // "closeMyTab"
-QT_MOC_LITERAL(22, 225, 17), // "tabIndexRearrange"
-QT_MOC_LITERAL(23, 243, 4), // "from"
-QT_MOC_LITERAL(24, 248, 2) // "to"
+QT_MOC_LITERAL(19, 198, 11), // "webViewBack"
+QT_MOC_LITERAL(20, 210, 14), // "webViewForward"
+QT_MOC_LITERAL(21, 225, 8), // "showTime"
+QT_MOC_LITERAL(22, 234, 6), // "incTab"
+QT_MOC_LITERAL(23, 241, 10), // "closeMyTab"
+QT_MOC_LITERAL(24, 252, 17), // "tabIndexRearrange"
+QT_MOC_LITERAL(25, 270, 4), // "from"
+QT_MOC_LITERAL(26, 275, 2) // "to"
 
     },
     "MainWindow\0clicked\0\0index\0WinMinimize\0"
@@ -61,8 +63,9 @@ QT_MOC_LITERAL(24, 248, 2) // "to"
     "event\0hideEvent\0QHideEvent*\0keyPressEvent\0"
     "QKeyEvent*\0launchURL\0updateUrl\0"
     "updateUrlBar\0replyFinished\0QNetworkReply*\0"
-    "pReply\0showTime\0incTab\0closeMyTab\0"
-    "tabIndexRearrange\0from\0to"
+    "pReply\0webViewBack\0webViewForward\0"
+    "showTime\0incTab\0closeMyTab\0tabIndexRearrange\0"
+    "from\0to"
 };
 #undef QT_MOC_LITERAL
 
@@ -72,7 +75,7 @@ static const uint qt_meta_data_MainWindow[] = {
        7,       // revision
        0,       // classname
        0,    0, // classinfo
-      14,   14, // methods
+      16,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -80,22 +83,24 @@ static const uint qt_meta_data_MainWindow[] = {
        1,       // signalCount
 
  // signals: name, argc, parameters, tag, flags
-       1,    1,   84,    2, 0x06 /* Public */,
+       1,    1,   94,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       4,    0,   87,    2, 0x08 /* Private */,
-       5,    0,   88,    2, 0x08 /* Private */,
-       6,    1,   89,    2, 0x08 /* Private */,
-       9,    1,   92,    2, 0x08 /* Private */,
-      11,    1,   95,    2, 0x08 /* Private */,
-      13,    0,   98,    2, 0x08 /* Private */,
-      14,    0,   99,    2, 0x08 /* Private */,
-      15,    1,  100,    2, 0x08 /* Private */,
-      16,    1,  103,    2, 0x08 /* Private */,
-      19,    0,  106,    2, 0x08 /* Private */,
-      20,    0,  107,    2, 0x08 /* Private */,
-      21,    1,  108,    2, 0x08 /* Private */,
-      22,    2,  111,    2, 0x08 /* Private */,
+       4,    0,   97,    2, 0x08 /* Private */,
+       5,    0,   98,    2, 0x08 /* Private */,
+       6,    1,   99,    2, 0x08 /* Private */,
+       9,    1,  102,    2, 0x08 /* Private */,
+      11,    1,  105,    2, 0x08 /* Private */,
+      13,    0,  108,    2, 0x08 /* Private */,
+      14,    0,  109,    2, 0x08 /* Private */,
+      15,    1,  110,    2, 0x08 /* Private */,
+      16,    1,  113,    2, 0x08 /* Private */,
+      19,    0,  116,    2, 0x08 /* Private */,
+      20,    0,  117,    2, 0x08 /* Private */,
+      21,    0,  118,    2, 0x08 /* Private */,
+      22,    0,  119,    2, 0x08 /* Private */,
+      23,    1,  120,    2, 0x08 /* Private */,
+      24,    2,  123,    2, 0x08 /* Private */,
 
  // signals: parameters
     QMetaType::Void, QMetaType::Int,    3,
@@ -112,8 +117,10 @@ static const uint qt_meta_data_MainWindow[] = {
     QMetaType::Void, 0x80000000 | 17,   18,
     QMetaType::Void,
     QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void,
     QMetaType::Void, QMetaType::Int,    3,
-    QMetaType::Void, QMetaType::Int, QMetaType::Int,   23,   24,
+    QMetaType::Void, QMetaType::Int, QMetaType::Int,   25,   26,
 
        0        // eod
 };
@@ -134,10 +141,12 @@ void MainWindow::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, 
         case 7: _t->updateUrl(); break;
         case 8: _t->updateUrlBar((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 9: _t->replyFinished((*reinterpret_cast< QNetworkReply*(*)>(_a[1]))); break;
-        case 10: _t->showTime(); break;
-        case 11: _t->incTab(); break;
-        case 12: _t->closeMyTab((*reinterpret_cast< int(*)>(_a[1]))); break;
-        case 13: _t->tabIndexRearrange((*reinterpret_cast< int(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2]))); break;
+        case 10: _t->webViewBack(); break;
+        case 11: _t->webViewForward(); break;
+        case 12: _t->showTime(); break;
+        case 13: _t->incTab(); break;
+        case 14: _t->closeMyTab((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 15: _t->tabIndexRearrange((*reinterpret_cast< int(*)>(_a[1])),(*reinterpret_cast< int(*)>(_a[2]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
@@ -189,13 +198,13 @@ int MainWindow::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 14)
+        if (_id < 16)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 16;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 14)
+        if (_id < 16)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 14;
+        _id -= 16;
     }
     return _id;
 }

@@ -40,8 +40,8 @@ MainWindow::MainWindow(QWidget *parent)
             this, SIGNAL(clicked(int)));
     
     //Freed in destructor    
-    views=(QWebView**)malloc(sizeof(QWebView*)*maxTabs);
-    viewsClose=(QToolButton**)malloc(sizeof(QToolButton*)*maxTabs);
+    tabs = new Tabs*[maxTabs];
+
 
     //Main window
     this->resize(WIN_X_SIZE,WIN_Y_SIZE);
@@ -73,13 +73,8 @@ MainWindow::MainWindow(QWidget *parent)
     timeLabel->move(930,570);
     timeLabel->show(); 
 
-
+    //Needed to get webpage title
     m_manager=new QNetworkAccessManager(this);
-    
-    //allow cookies for youtube
-    //cookieJar=new QNetworkCookieJar();
-    //m_manager->setCookieJar(cookieJar);
-
     connect(m_manager,SIGNAL(finished(QNetworkReply*)),
             this, SLOT(replyFinished(QNetworkReply*)));
     
@@ -87,35 +82,43 @@ MainWindow::MainWindow(QWidget *parent)
 
     //Tab Page section
     tabControl = new QTabWidget(this);
+    tabControl->setMovable(true);
     tabControl->setMouseTracking(true);
     tabControl->resize(1000,520);
     tabControl->move(0,50);
     tabControl->setAttribute(Qt::WA_TranslucentBackground,true);
     //tabControl->setStyleSheet("background:transparent");
     
-    connect(tabControl,SIGNAL(currentChanged(int)),this, SLOT(updateUrlBar()));
+    connect(tabControl,SIGNAL(currentChanged(int)),this, SLOT(updateUrlBar(int)));
+    connect(tabControl->tabBar(),SIGNAL(tabMoved(int,int)),
+            this,SLOT(tabIndexRearrange(int,int)));
 
 
     //Webview
-    //view = new QWebView(this);
     view=new QWebView(tabControl);
 
+    QTextStream out(stdout);
     //backwards compatability to not have to redo all the code that says "view"
-    views[0]=view;
+    tabs[0]=new Tabs();
+    tabs[0]->webView=view;
     
+    
+    tabList = new TabList();
+    tabList->tabsHead=tabs[0];
+    tabList->tabsHead->nextTab=NULL;
+
+    std::cout << tabList->getLastTabsIndex();
+
     tabControl->addTab(view,QString::fromStdString(" "));
+    tabs[0]->initialized=true;
     tabAmount++;
     
     //tabControl->setTabsClosable(true);
-    viewsClose[0] = new QToolButton(this);
-    viewsClose[0]->setText("x");
-    connect(viewsClose[0],SIGNAL(clicked()),signalMapper,SLOT(map()));
-    signalMapper->setMapping(viewsClose[0],0);
-    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,viewsClose[0]);
-    //view->resize(1000,520);
-    //view->move(0,50);
-    
-    //connect(tabControl,SIGNAL(tabCloseRequested(int)),this,SLOT(closeMyTab(int)));
+    tabs[0]->webViewClose = new QToolButton(this);
+    tabs[0]->webViewClose->setText("x");
+    connect(tabs[0]->webViewClose,SIGNAL(clicked()),signalMapper,SLOT(map()));
+    signalMapper->setMapping(tabs[0]->webViewClose,0);
+    tabControl->tabBar()->setTabButton(0,QTabBar::RightSide,tabs[0]->webViewClose);
 
     view->setMouseTracking(true);
     view->setStyleSheet("background:transparent");
@@ -124,11 +127,10 @@ MainWindow::MainWindow(QWidget *parent)
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled,true);    
     QWebSettings::globalSettings()->setAttribute(QWebSettings::AutoLoadImages,true);    
     view->load(QUrl("http://www.google.com"));
-    //view->page()->settings()->clearMemoryCaches();
-    //view->reload();
 
 
-
+    //Add tab button. The tab itself is disabled so that the user will not
+    //focus on it when clicking
     QToolButton *tb = new QToolButton(this);
     tb->setText("+");
     tabControl->addTab(new QLabel("Add tabs by pressing +"),QString());
@@ -139,10 +141,27 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this, SIGNAL(clicked(int)), this, SLOT(closeMyTab(int)));
 
-    //view->setEnabled(true); 
-    //view->page()->setNetworkAccessManager(m_manager);
     
     connect(view,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+
+    //Back and forward buttons
+    //QIcon backIcon= style->standardIcon(QStyle::SP_ArrowBack);
+    webBack=new QPushButton(this);
+    //webBack->setIcon(backIcon);
+    webBack->setText("<<");
+    webBack->resize(20,20);
+    webBack->move(15,20);
+    webBack->setAutoDefault(false);
+    webBack->setDefault(false);
+    connect(webBack,SIGNAL(clicked()),this,SLOT(webViewBack()));
+
+    webForward=new QPushButton(this);
+    webForward->setText(">>");
+    webForward->resize(20,20);
+    webForward->move(40,20); 
+    webForward->setAutoDefault(false);
+    webForward->setDefault(false);
+    connect(webForward,SIGNAL(clicked()),this,SLOT(webViewForward()));
 
     //Quit button section
     QIcon closeIcon=style->standardIcon(QStyle::SP_TitleBarCloseButton);
@@ -186,15 +205,15 @@ MainWindow::MainWindow(QWidget *parent)
 
     //URL section
     lineEdit1 = new QLineEdit(this);
-    lineEdit1->resize(800,20);
-    lineEdit1->move(20,20);
+    lineEdit1->resize(740,20);
+    lineEdit1->move(60,20);
     lineEdit1->setStyleSheet(".QLineEdit{border-radius: 10px;}");
 
     //Launch URL section
     urlLaunch = new QPushButton(this);
     urlLaunch->setText("Launch");
     urlLaunch->resize(70,20);
-    urlLaunch->move(820,20);
+    urlLaunch->move(800,20);
     urlLaunch->setShortcut(QKeySequence(Qt::Key_Enter));
     urlLaunch->setDefault(true);
     urlLaunch->setAutoDefault(true);
@@ -208,7 +227,8 @@ MainWindow::MainWindow(QWidget *parent)
     urlLaunch->show();
     quit->show();
     view->show();
-    
+    webBack->show();
+    webForward->show();    
     frame->show();
     
     
@@ -216,7 +236,7 @@ MainWindow::MainWindow(QWidget *parent)
 }
 
 MainWindow::~MainWindow(){
-    free(views);
+    delete tabs;
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event){
@@ -224,16 +244,6 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event){
     event->accept();
 }
 
-void MainWindow::closeTab(){
-    
-    QTextStream out(stdout);
-    out<<"Here";
-    out<<tabControl->tabBar()->currentIndex();
-    
-    //tabControl->removeTab(0);
-    //tabAmount--;
-
-}
 
 void MainWindow::closeMyTab(int index){
 
@@ -241,8 +251,51 @@ void MainWindow::closeMyTab(int index){
    QTextStream out(stdout);
 
    out << sender();
-
    tabAmount--;
+   
+   //tabAmount-1 accounts for the add tab tab
+   for (int dec=index; dec<tabAmount-1; dec++){
+        tabs[dec]=tabs[dec+1];
+        out<< "Decrement " << dec+1 << "To " << dec << "\n";
+
+   }
+
+
+}
+
+void MainWindow::tabIndexRearrange(int from, int to){
+    
+    Tabs *tempFromTab=new Tabs();
+    Tabs *tempToTab = new Tabs();
+
+    //moving inc tab tab shouldn't trigger below
+    if (to != tabAmount-1){
+        memcpy(tempFromTab, tabs[from], sizeof(Tabs));
+        memcpy(tempToTab, tabs[to], sizeof(Tabs));
+        //tempTab = tabs[from];
+        memcpy(tabs[to],tempFromTab,sizeof(Tabs));
+
+        //tabs[to]=tabs[from];
+        memcpy(tabs[from],tempToTab,sizeof(Tabs));
+
+        delete tempFromTab;
+        delete tempToTab;
+    }
+    
+}
+
+
+int MainWindow::TabList::getLastTabsIndex(){
+    Tabs *temp=tabsHead;    
+    int lastIndex=-1;
+     
+    while (temp != NULL){
+        temp=temp->next();
+        lastIndex++;
+    }  
+
+    return lastIndex;
+
 }
 
 
@@ -250,37 +303,60 @@ void MainWindow::incTab(){
     //account add tab button
     int index=tabAmount-1;
 
+
     if (tabAmount<=maxTabs){
     
-    views[index]=new QWebView(tabControl);
-    tabControl->addTab(views[index],QString::fromStdString(" "));
-    tabAmount++;
-    views[index]->setMouseTracking(true);
-    views[index]->setStyleSheet("background:transparent");
-    views[index]->setAttribute(Qt::WA_TranslucentBackground,true);
-    views[index]->load(QUrl("http://www.google.com"));
-    viewsClose[index] = new QToolButton(this);
-    viewsClose[index]->setText("x");
+    
+    QTextStream out(stdout);
+    
+    //add tab to tabControl
+    //if (!tabs[index]->initialized){
+        out<<"Reached";
+        tabs[index]=new Tabs();
+        tabs[index]->webView=new QWebView(tabControl);
+    //    tabs[index]->initialized=true;
+    //}
 
-    //connect(viewsClose[index],SIGNAL(clicked()),this,SLOT(closeTab()));
-    connect(viewsClose[index],SIGNAL(clicked()),
+    tabControl->addTab(tabs[index]->webView,QString::fromStdString(" "));
+    tabAmount++;
+    
+    //move the add tab button over 1
+    //tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
+    
+    //focus on new tab
+    //tabControl->setCurrentIndex(index);
+    ///*
+    //tab settings
+    tabs[index]->webView->setMouseTracking(true);
+    tabs[index]->webView->setStyleSheet("background:transparent");
+    tabs[index]->webView->setAttribute(Qt::WA_TranslucentBackground,true);
+    tabs[index]->webView->load(QUrl("http://www.google.com"));
+    
+   
+    //button to close the tab
+    tabs[index]->webViewClose = new QToolButton(this);
+    tabs[index]->webViewClose->setText("x");
+    
+    
+    //Map the index number to the index of the Tabs struct
+    //so that the right tab can be closed when its button its
+    connect(tabs[index]->webViewClose,SIGNAL(clicked()),
             signalMapper,SLOT (map()));
-            signalMapper->setMapping(viewsClose[index],index);
+    signalMapper->setMapping(tabs[index]->webViewClose,index);
 
                
 
     //This "tabAmount-1" is the last tab on the tabbar, different from index since
     //tabAmount has been incremented above
-    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,viewsClose[index]);
+    tabControl->tabBar()->setTabButton(tabAmount-1,QTabBar::RightSide,tabs[index]->webViewClose);
     
-    //views[index]->page()->setNetworkAccessManager(m_manager);
-    //views[index]->show();
-    connect(views[index],SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
+    connect(tabs[index]->webView,SIGNAL(urlChanged(QUrl)),this,SLOT(updateUrl()));
     //move the add tab button over 1
     tabControl->tabBar()->moveTab(tabAmount-2,tabAmount-1);
     
     //focus on new tab
-    tabControl->setCurrentIndex(index); 
+    tabControl->setCurrentIndex(index);
+    //*/
     }
     
 }
@@ -324,27 +400,36 @@ void MainWindow::fetchUrl(std::string urlstr){
 
 }
 
-void MainWindow::updateUrlBar()
+void MainWindow::updateUrlBar(int index)
 {
-    int index=tabControl->currentIndex();
-   
-    if (views[index]->url().toString() != ""){
-        lineEdit1->setText(views[index]->url().toString());
+
+    if (tabs[index]->webView->url().toString() != ""){
+        lineEdit1->setText(tabs[index]->webView->url().toString());
 
     }
-
 
 }
 
 void MainWindow::updateUrl()
 {
-//    QTextStream out(stdout);
-//    out << "I am here";
-    lineEdit1->setText(views[tabControl->currentIndex()]->url().toString());
-    urlExists(views[tabControl->currentIndex()]->url());
+    
+    lineEdit1->setText(tabs[tabControl->currentIndex()]->webView->url().toString());
+    urlExists(tabs[tabControl->currentIndex()]->webView->url());
 
 }
 
+void MainWindow::webViewBack(){
+
+    int index=tabControl->currentIndex();
+    tabs[index]->webView->back();
+}
+
+void MainWindow::webViewForward(){
+    int index=tabControl->currentIndex();
+    tabs[index]->webView->forward();
+    
+
+}
 
 void MainWindow::WinMinimize()
 {
@@ -386,7 +471,7 @@ bool MainWindow::urlExists(QUrl theurl){
                     while(packetSize>0)
                     {
                         //Output server response for debugging
-                        out << "[" << buffer.data() << "]"; //<<endl;
+                        //out << "[" << buffer.data() << "]"; //<<endl;
                         
                        /* int titlestart=buffer.indexOf("<title>")+7;
                         int titleend=buffer.indexOf("</title>");
@@ -428,25 +513,6 @@ bool MainWindow::urlExists(QUrl theurl){
 void MainWindow::launchURL()
 {
   std::string urlstring = lineEdit1->text().toStdString();
-   /*if (urlstring.substr(0,11)!="http://www."){
-       //initialize manipulated string
-       std::string editstr;
-       //if there is an http but no www. then
-       if(urlstring.substr(0,7)=="http://"){
-            editstr="http://www."+urlstring.substr(7,urlstring.length()-7);
-       
-       }
-       //If there is www. but no http
-       else if(urlstring.substr(0,4)=="www."){
-            editstr="http://"+urlstring;
-       
-       }
-       else{ 
-            editstr="http://www."+lineEdit1->text().toStdString();
-       }
-       QString qeditstr = QString::fromStdString(editstr);
-       lineEdit1->setText(qeditstr); 
-   }*/
 
    if (urlstring.substr(0,7)!="http://" && urlstring.substr(0,8)!="https://"){
        std::string editstr;
@@ -460,9 +526,12 @@ void MainWindow::launchURL()
    
    QUrl url = QUrl::fromUserInput(lineEdit1->text()); 
    if (urlExists(url)){
-       std::cout<< "Current index is " << tabControl->currentIndex() << "\n";
-       views[tabControl->currentIndex()]->load(url);}
-       //view->setUrl(url);}
+       //QTextStream out(stdout);
+       
+       tabs[tabControl->currentIndex()]->webView->load(url);
+       //out << "Index being loaded is: " << tabControl->currentIndex();
+       
+       }
    else{
        qDebug() << QString("Invalid URL: %1").arg(url.toString());
        displayErrorHTML();    
@@ -532,7 +601,7 @@ void MainWindow::resizeEvent(QResizeEvent *event){
    tabControl->resize(nwidth,nheight-80);
 
    //Resize url bar with window
-   lineEdit1->resize(nwidth-200,20);
+   lineEdit1->resize(nwidth-240,20);
 
    //Move all buttons so they're in the right spot
    urlLaunch->move(nwidth-180,20);
@@ -647,10 +716,10 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
         
             //Upper left corner section
             if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
-            this->setCursor(Qt::SizeFDiagCursor);
+                this->setCursor(Qt::SizeFDiagCursor);
     
             
-            //Upper left. No flipping of axis, no translating window
+                //Upper left. No flipping of axis, no translating window
                adjXfac=1;
                adjYfac=1;
                 
@@ -722,6 +791,8 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
     }
     
     //if (inResizeZone(rs_mpos)){    
+    
+    //resize if resizeLock true
     if (resizeLock){    
         
        
@@ -762,181 +833,3 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event){
 
 }
 
-/*
-void MainWindow::mouseMoveEvent(QMouseEvent *event){
-   
-
-    //mapped mouse relative to upper left of window
-    rs_mpos=event->globalPos()-frameGeometry().topLeft();//general position tracker for resizing
-    QTextStream out(stdout);
-    //How much of the corner is considered a "resizing zone"
-    //I was experiencing jumping behavior with rs_size is 10 so
-    //I recommend rs_size=50
-    
-    //Modification Note: Resize zone of 50 is too large for cursor change.
-    //Added new method inResizeZone(rs_mpos) where the resize zone is still 50
-    //and a condition is added to window drag movement in this method.
-    //However in this method resize zone is 30 so that mouse cursor change occurs at 30x30
-    //but window drag movement is disabled at 50x50 to avoid jumping
-    int rs_size=50;
-    int min_size=100;
-   
-    //Big if statement checks if your mouse is in the upper left,
-    //upper right, lower left, and lower right 
-
-*/    
-    /*if (  //(this->width()>min_size && this->height()>min_size) && (
-         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size) ||
-         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size) || 
-         (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size) ||
-         (abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size)
-        // ) 
-         ){
-    */
-/*
-    resizeLock=false;
-    if (inResizeZone(rs_mpos) && 
-        event->buttons()==Qt::LeftButton){
-        
-        resizeLock=true;
-
-    }
-    
-    //if (inResizeZone(rs_mpos)){    
-    if (resizeLock){    
-
-*/    
-        //Below for debugging
-        /*
-        out << rs_mpos.x() << " , " << rs_mpos.y() << "\n";
-        out << "window: " << this->width() << " , " << this->height() << "\n";
-        out << "globalpos: " << event->globalPos().x() << " , " 
-            << event->globalPos().y() << "\n";
-        */
-
-/*
-        //Use 2x2 matrix to adjust how much you are resizing and how much you
-        //are moving. Since the default coordinates are relative to upper left
-        //You cannot just have one way of resizing and moving the window.
-        //It will depend on which corner you are referring to
-
-        //adjXfac and adjYfac are for calculating the difference between your
-        //current mouse position and where your mouse was when you clicked.
-        //With respect to the upper left corner, moving your mouse to the right
-        //is an increase in coordinates, moving mouse to the bottom is increase
-        //etc.
-        //However, with other corners this is not so and since I chose to subtract
-        //This difference at the end for resizing, adjXfac and adjYfac should be
-        //1 or -1 depending on whether moving the mouse in the x or y directions
-        //increases or decreases the coordinates respectively. 
-
-        //transXfac transYfac is to move the window over. Resizing the window does not
-        //automatically pull the window back toward your mouse. This is what
-        //transfac is for (translate window in some direction). It will be either
-        //0 or 1 depending on whether you need to translate in that direction.
-
-        //Initiate matrix
-        int adjXfac=0;
-        int adjYfac=0;
-        int transXfac=0;
-        int transYfac=0;
-
-        //Upper left corner section
-        if ( (abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y()) < rs_size)){
-            this->setCursor(Qt::SizeFDiagCursor);
-    
-            
-            //Upper left. No flipping of axis, no translating window
-               adjXfac=1;
-               adjYfac=1;
-                
-               transXfac=0;
-               transYfac=0;
-
-
-        }
-        //Upper right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y()) <rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
-    
-    
-            //upper right. Flip displacements in mouse movement across x axis
-            //and translate window left toward the mouse
-            adjXfac=-1;
-            adjYfac=1;
-
-            transXfac = 1;
-            transYfac =0;    
-
-
-        }
-        //Lower left corner section
-        else if(abs(rs_mpos.x()) < rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeBDiagCursor);
-                
-            //lower left. Flip displacements in mouse movement across y axis
-            //and translate window up toward mouse
-            adjXfac=1;
-            adjYfac=-1;
-
-            transXfac=0;
-            transYfac=1;
-            
-
-        }   
-        //Lower right corner section
-        else if(abs(rs_mpos.x()) > this->width()-rs_size && abs(rs_mpos.y())> this->height()-rs_size){
-            this->setCursor(Qt::SizeFDiagCursor);
-            
-            //lower right. Flip mouse displacements on both axis and
-            //translate in both x and y direction left and up toward mouse.
-            adjXfac=-1;
-            adjYfac=-1;
-
-            transXfac=1;
-            transYfac=1;
-        }
-       
-
-        if (event->buttons()==Qt::LeftButton){
-              
-           
-           //Calculation of displacement. adjXfac=1 means normal displacement
-           //adjXfac=-1 means flip over axis     
-           int adjXdiff = adjXfac*(event->globalPos().x() - global_mpos.x());
-                
-           int adjYdiff = adjYfac*(event->globalPos().y() - global_mpos.y());
-           
-           //if transfac is 1 then movepoint of mouse is translated     
-           QPoint movePoint(mpos.x() - transXfac*adjXdiff, mpos.y()-transYfac*adjYdiff);
-            
-            if (storeWidth-adjXdiff>min_size && storeHeight-adjYdiff>min_size){
-                move(event->globalPos()-movePoint);
-           
-                resize(storeWidth-adjXdiff, storeHeight-adjYdiff);
-            }     
-                event->accept();
-                
-                
-        }
-
-    }
-
-
-    //in any move event if it is not in a resize region use the default cursor
-    //Move window
-    else{
-    
-        this->setCursor(Qt::ArrowCursor);
-        //simple move section
-        if (event->buttons()==Qt::LeftButton){
-            move(event->globalPos() - mpos);
-            event->accept();
-        }
-    }
-    
-
-    
-
-}
-*/
