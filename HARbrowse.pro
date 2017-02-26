@@ -11,6 +11,7 @@ QT += network webkit webkitwidgets
 QT += core gui
 QT += widgets
 CONFIG+=link_pkgconfig
+CONFIG+= qt debug
 PKGCONFIG+=gstreamer-1.0
 
 # Input

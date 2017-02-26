@@ -130,6 +130,10 @@ class MainWindow : public QMainWindow
         };
 
         TabList *tabList;
+        void deleteTabPointer(Tabs* tabPointer);
+
+        //for debugging
+        void tabConnectionCheck();
 
         //methods
         void fetchUrl(std::string urlstr);

@@ -242,6 +242,12 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event){
     event->accept();
 }
 
+void MainWindow::deleteTabPointer(Tabs* tabPointer){
+       delete tabPointer->webViewClose;
+       delete tabPointer->webView;
+       delete tabPointer;
+}
+
 
 void MainWindow::closeMyTab(int index){
 
@@ -257,8 +263,9 @@ void MainWindow::closeMyTab(int index){
    
    if (tmp->getPrev()==NULL && tmp->getNext()==NULL){
        //It's the head node 
-       delete tmp;
+       deleteTabPointer(tmp); 
        tabList->setHead(NULL);
+       tabConnectionCheck();
        return;
    }
     
@@ -270,7 +277,12 @@ void MainWindow::closeMyTab(int index){
    if (nextNode==NULL){
        //It's the end tab, delete it and set prevNode next to NULL
        prevNode->setNext(NULL);
-       delete tmp;
+       
+       //Move focus to tab before end tab to prevent focus from
+       //going onto add tab tab
+       tabControl->setCurrentIndex(index-1);
+       deleteTabPointer(tmp); 
+       tabConnectionCheck();
        return;
    }
    
@@ -287,7 +299,17 @@ void MainWindow::closeMyTab(int index){
         nextNode->setPrev(prevNode);
 
    }
-   delete tmp;
+   deleteTabPointer(tmp); 
+   
+   if(tmp!=NULL){
+        out<< "\ntab deletion did not succeed!"<<endl;
+        if (tmp->webView !=NULL){
+            out << "webView exists";
+        }
+        if (tmp->webViewClose != NULL){
+            out<< "webView Close exists";
+        }
+   }
 
    //update indices
    while (nextNode!=NULL){
@@ -295,10 +317,19 @@ void MainWindow::closeMyTab(int index){
         signalMapper->setMapping(nextNode->webViewClose,nextNode->index);
         nextNode=nextNode->getNext();
    }
-
+    
    //update current url bar
    updateUrlBar(tabControl->currentIndex());
 
+
+   tabConnectionCheck();
+
+
+
+}
+
+void MainWindow::tabConnectionCheck(){
+   QTextStream out(stdout);
    out << "\nStart connection check" << endl;
    for(int i=0; i<=tabList->getLastTabIndex();i++){
         Tabs* theTab=tabList->getTab(i);
@@ -396,31 +427,6 @@ void MainWindow::tabIndexRearrange(int from, int to){
         fromPrev->setNext(toTab);
     }
     
-   out << "\nStart rearrange check" << endl;
-   for(int i=0; i<=tabList->getLastTabIndex();i++){
-        Tabs* theTab=tabList->getTab(i);
-        if (theTab !=NULL){
-            out << "Tab " << theTab->index << " is connected to: " << endl;
-            
-            if (theTab->getPrev() != NULL) {
-                out << "\t"<<theTab->getPrev()->index << " back" << endl;
-            }
-            else{
-                out << "\t"<<"Null back"<<endl;
-            }
-            
-            if (theTab->getNext() != NULL) {
-                out << "\t"<<theTab->getNext()->index << " forward" << endl;
-            }
-            else{
-                out << "\t"<<"Null forward"<<endl;
-            }
-        }
-        else{
-            out<< "Tab "<< i << " is Null."<<endl;
-        }
-
-   }
 }
 
 
@@ -582,6 +588,16 @@ void MainWindow::fetchUrl(std::string urlstr){
 void MainWindow::updateUrlBar(int index)
 {
     QTextStream out(stdout);
+
+    //If it's focused on the add tab tab then
+    //Focus should go to last actual tab instead
+    //Probably should be implemented somewhere else but for now 
+    //Leave it here
+    if (index>tabList->getLastTabIndex()){
+        tabControl->setCurrentIndex(tabList->getLastTabIndex());
+        return;
+    }
+    
 
     if (tabList->getTab(index)->webView->url().toString() != ""){
         lineEdit1->setText(tabList->getTab(index)->webView->url().toString());
